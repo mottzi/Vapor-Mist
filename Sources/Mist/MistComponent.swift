@@ -3,7 +3,7 @@ import Fluent
 @testable import LeafKit
 
 // mist component protocol
-public protocol Component
+public protocol Component: Sendable
 {
     // component name
     static var name: String { get }
