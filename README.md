@@ -1,5 +1,5 @@
 # Mist
-
+ 
 Mist is a lightweight Swift server components extension for [Vapor](https://docs.vapor.codes) applications. It enables real-time client side HTML component updates through type safe web socket communication with the server. 
 
 [Fluent](https://docs.vapor.codes/fluent/overview/) is used as database ORM and [Leaf](https://docs.vapor.codes/leaf/overview/) is used as HTML templating engine - both are part of Vapor's default stack.
