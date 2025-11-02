@@ -30,11 +30,6 @@ public extension Model
     }
 }
 
-//@inlinable
-//public func == (lhs: any Model.Type, rhs: any Model.Type) -> Bool {
-//    ObjectIdentifier(lhs) == ObjectIdentifier(rhs)
-//}
-
 // container to hold model instances for rendering
 public struct ModelContainer: Encodable
 {
