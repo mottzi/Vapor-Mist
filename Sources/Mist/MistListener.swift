@@ -6,12 +6,13 @@ extension Model
     // registers db middleware listener on Fluent db changes
     static func createListener(using config: Mist.Configuration, on db: DatabaseID?)
     {
+        print("*** Listener created for model '\(String(describing: self)).'")
         config.app.databases.middleware.use(Mist.Listener<Self>(using: config), on: db)
     }
 }
 
 // generic database model update listener
-struct Listener<M: Model>: AsyncModelMiddleware
+struct Listener<M: Mist.Model>: AsyncModelMiddleware
 {
     let config: Mist.Configuration
     let logger = Logger(label: "[Mist]")
@@ -24,7 +25,7 @@ struct Listener<M: Model>: AsyncModelMiddleware
     // update callback
     func update(model: M, on db: Database, next: AnyAsyncModelResponder) async throws
     {
-        print("*** Listener for model '\(String(describing: model.self))' was triggered.")
+        print("*** Listener triggered for model '\(String(describing: model.self))' .")
         
         // perform middleware chain
         try await next.update(model, on: db)
