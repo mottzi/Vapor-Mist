@@ -11,48 +11,33 @@ actor Components
     private var components: [AnyComponent] = []
 
     // type-safe mist component registration
-    func register<C: Mist.Component>(component: C.Type, using config: Mist.Configuration)
-    {
-        // abort if default naming was overwritten
-        // guard component.name == String(describing: C.self) else { assertionFailure("test"); return }
-        
+    func register<C: Mist.Component>(component: C.Type, using config: Mist.Configuration) {
         // abort if component name is already registered
         guard components.contains(where: { $0.name == C.name }) == false else { return }
         
         // register database listeners for component models
-        for model in component.models
-        {
-            // search for component using this model
-            let isModelUsed = components.contains()
-            {
-                $0.models.contains { ObjectIdentifier($0) == ObjectIdentifier(model) }
-            }
+        for model in component.models {
+            // skip if component using this model has already been registered
+            guard components.contains(where: { $0.models.contains { $0 == model } }) == false else { continue }
             
-            // if this model is not yet used
-            if isModelUsed == false
-            {
-                // register db model listener middleware
-                model.createListener(using: config, on: config.db)
-            }
+            // register db model listener middleware for new models
+            model.createListener(using: config, on: config.db)
         }
         
         // add new type erased mist component to storage
-        if let testableComponent = component as? any TestableComponent.Type
-        {
+        if let testableComponent = component as? any TestableComponent.Type {
             // for test components
             components.append(AnyComponent(testableComponent))
         }
-        else
-        {
+        else {
             // for regular components
             components.append(AnyComponent(component))
         }
     }
     
     // retrieve all components that use a specific model
-    func getComponents<M: Model>(for type: M.Type) -> [AnyComponent]
-    {
-        return components.filter { $0.models.contains { ObjectIdentifier($0) == ObjectIdentifier(type) } }
+    func getComponents<M: Mist.Model>(using model: M.Type) -> [AnyComponent] {
+        components.filter { $0.models.contains { $0 == model } }
     }
     
     // checks if component with given name exists

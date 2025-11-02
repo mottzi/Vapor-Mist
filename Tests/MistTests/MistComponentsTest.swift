@@ -56,9 +56,9 @@ final class MistComponentsTest: XCTestCase
         await Mist.Components.shared.registerComponents(definedIn: config)
         
         // use model-based component lookup API
-        let model1Components = await Mist.Components.shared.getComponents(for: DummyModel1.self)
-        let model2Components = await Mist.Components.shared.getComponents(for: DummyModel2.self)
-        let model3Components = await Mist.Components.shared.getComponents(for: DummyModel3.self)
+        let model1Components = await Mist.Components.shared.getComponents(using: DummyModel1.self)
+        let model2Components = await Mist.Components.shared.getComponents(using: DummyModel2.self)
+        let model3Components = await Mist.Components.shared.getComponents(using: DummyModel3.self)
 
         // test results of API for first model
         XCTAssertEqual(model1Components.count, 2, "Expected exactly 2 components for DummyModel1")

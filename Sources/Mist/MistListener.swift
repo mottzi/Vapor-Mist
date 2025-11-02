@@ -6,7 +6,7 @@ extension Model
     // registers db middleware listener on Fluent db changes
     static func createListener(using config: Mist.Configuration, on db: DatabaseID?)
     {
-        print("*** Listener created for model '\(String(describing: self)).'")
+        print("*** Listener created for model '\(String(describing: self))' .")
         config.app.databases.middleware.use(Mist.Listener<Self>(using: config), on: db)
     }
 }
@@ -34,7 +34,7 @@ struct Listener<M: Mist.Model>: AsyncModelMiddleware
         guard let modelID = model.id else { return }
         
         // get type-safe components registered for this model type
-        let components = await Components.shared.getComponents(for: M.self)
+        let components = await Components.shared.getComponents(using: M.self)
         
         // process each component
         for component in components

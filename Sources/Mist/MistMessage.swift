@@ -4,14 +4,12 @@ import Vapor
 enum Message: Codable
 {
     case subscribe(component: String)
-    // case unsubscribe(component: String)
-    case update(component: String/*, action: String*/, id: UUID?, html: String)
+    case update(component: String, id: UUID?, html: String)
 
     private enum CodingKeys: String, CodingKey
     {
         case type
         case component
-        // case action
         case id
         case html
     }
@@ -27,10 +25,9 @@ enum Message: Codable
                 try container.encode("subscribe", forKey: .type)
                 try container.encode(component, forKey: .component)
                 
-            case .update(let component/*, let action*/, let id, let html):
+            case .update(let component, let id, let html):
                 try container.encode("update", forKey: .type)
                 try container.encode(component, forKey: .component)
-//                try container.encode(action, forKey: .action)
                 try container.encode(id, forKey: .id)
                 try container.encode(html, forKey: .html)
         }
@@ -48,13 +45,8 @@ enum Message: Codable
                 let component = try container.decode(String.self, forKey: .component)
                 self = .subscribe(component: component)
                 
-            /*case "unsubscribe":
-                let component = try container.decode(String.self, forKey: .component)
-                self = .unsubscribe(component: component)*/
-                
             case "update":
                 let component = try container.decode(String.self, forKey: .component)
-//                let action = try container.decode(String.self, forKey: .action)
                 let id = try container.decodeIfPresent(UUID.self, forKey: .id)
                 let html = try container.decode(String.self, forKey: .html)
                 self = .update(component: component, /*action: action,*/ id: id, html: html)
