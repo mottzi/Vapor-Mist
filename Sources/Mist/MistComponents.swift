@@ -7,36 +7,11 @@ actor Components
     static let shared = Components()
     private init() { }
     
-    // mist component storage (type-erasure pattern)
-    private var components: [AnyComponent] = []
-
-    // type-safe mist component registration
-    func register<C: Mist.Component>(component: C.Type, using config: Mist.Configuration) {
-        // abort if component name is already registered
-        guard components.contains(where: { $0.name == C.name }) == false else { return }
-        
-        // register database listeners for component models
-        for model in component.models {
-            // skip if component using this model has already been registered
-            guard components.contains(where: { $0.models.contains { $0 == model } }) == false else { continue }
-            
-            // register db model listener middleware for new models
-            model.createListener(using: config, on: config.db)
-        }
-        
-        // add new type erased mist component to storage
-        if let testableComponent = component as? any TestableComponent.Type {
-            // for test components
-            components.append(AnyComponent(testableComponent))
-        }
-        else {
-            // for regular components
-            components.append(AnyComponent(component))
-        }
-    }
+    // mist component storage (native existential type)
+    private var components: [any Component] = []
     
     // retrieve all components that use a specific model
-    func getComponents<M: Mist.Model>(using model: M.Type) -> [AnyComponent] {
+    func getComponents<M: Mist.Model>(using model: M.Type) -> [any Component] {
         components.filter { $0.models.contains { $0 == model } }
     }
     
@@ -55,7 +30,20 @@ extension Components
         // register configured components
         for component in config.components
         {
-            await Components.shared.register(component: component, using: config)
+            // abort if component name is already registered
+            guard components.contains(where: { $0.name == component.name }) == false else { continue }
+            
+            // register database listeners for component models
+            for model in component.models {
+                // skip if component using this model has already been registered
+                guard components.contains(where: { $0.models.contains { $0 == model } }) == false else { continue }
+                
+                // register db model listener middleware for new models
+                model.createListener(using: config, on: config.db)
+            }
+            
+            // add component instance to storage
+            components.append(component)
         }
     }
 }
@@ -63,16 +51,16 @@ extension Components
 #if DEBUG
 extension Components
 {
-    func registerWOListenerForTesting<C: Mist.Component>(_ component: C.Type)
+    func registerWOListenerForTesting(_ component: any Mist.Component)
     {
         // abort if component name is already registered
-        guard components.contains(where: { $0.name == C.name }) == false else { return }
+        guard components.contains(where: { $0.name == component.name }) == false else { return }
         
-        // add new type erased mist component to storage
-        components.append(Mist.AnyComponent(component))
+        // add component instance to storage
+        components.append(component)
     }
     
-    func getStorgeForTesting() async -> [Mist.AnyComponent]
+    func getStorgeForTesting() async -> [any Mist.Component]
     {
         return components
     }

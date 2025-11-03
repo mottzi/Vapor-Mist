@@ -19,11 +19,11 @@ public struct Configuration: Sendable
     let app: Application
     
     // configured components
-    let components: [any Mist.Component.Type]
+    let components: [any Mist.Component]
     
     // public initializer
     public init(for app: Application,
-                components: [any Mist.Component.Type],
+                components: [any Mist.Component],
                 on db: DatabaseID? = nil)
     {
         self.app = app

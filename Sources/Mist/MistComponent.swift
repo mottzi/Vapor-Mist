@@ -6,13 +6,19 @@ import Fluent
 public protocol Component: Sendable
 {
     // component name
-    static var name: String { get }
+    var name: String { get }
     
     // component template
-    static var template: String { get }
+    var template: String { get }
     
     // component models (joined by common id)
-    static var models: [any Mist.Model.Type] { get }
+    var models: [any Mist.Model.Type] { get }
+    
+    // render component using dynamically generated template context
+    func render(id: UUID, on db: Database, using renderer: ViewRenderer) async -> String?
+    
+    // check if component should update when the provided model changes
+    func shouldUpdate<M: Mist.Model>(for model: M) -> Bool
 }
 
 
@@ -20,17 +26,17 @@ public protocol Component: Sendable
 public extension Component
 {
     // name matches component type name
-    static var name: String { String(describing: self) }
+    var name: String { String(describing: Self.self) }
     
     // template matches component type name
-    static var template: String { String(describing: self) }
+    var template: String { String(describing: Self.self) }
 }
 
 // default context
 public extension Component
 {
     // create single component context
-    static func makeContext(of componentID: UUID, in db: Database) async -> Mist.SingleComponentContext?
+    func makeContext(of componentID: UUID, in db: Database) async -> Mist.SingleComponentContext?
     {
         // data container for dynamic multi model context creation
         var componentData = Mist.ModelContainer()
@@ -56,7 +62,7 @@ public extension Component
     }
     
     // create collection context for multiple components
-    static func makeContext(ofAll db: Database) async -> Mist.MultipleComponentContext
+    func makeContext(ofAll db: Database) async -> Mist.MultipleComponentContext
     {
         // array of data containes for dynamic multi model context creation
         var modelContainers: [Mist.ModelContainer] = []
@@ -92,8 +98,10 @@ public extension Component
 public extension Component
 {
     // render component using dynamically generated template context
-    static func render(id: UUID, on db: Database, using renderer: ViewRenderer) async -> String?
+    func render(id: UUID, on db: Database, using renderer: ViewRenderer) async -> String?
     {
+        print("*** Server rendering '\(name)' (file template)... ")
+        
         // create dynamic template datan context
         guard let context = await makeContext(of: id, in: db) else { return nil }
         
@@ -105,93 +113,32 @@ public extension Component
     }
     
     // check if component should update when the provided model changes
-    static func shouldUpdate<M: Mist.Model>(for model: M) -> Bool {
+    func shouldUpdate<M: Mist.Model>(for model: M) -> Bool {
         models.contains { $0 == M.self }
     }
 }
-
-// type-erased component wrapper for storage of heterogeneous components inside a single collection
-struct AnyComponent: Sendable
-{
-    // component metadata
-    let name: String
-    let template: String
-    let models: [any Model.Type]
-    
-    // type-erased functions
-    private let _shouldUpdate: @Sendable (any Mist.Model) -> Bool
-    private let _render: @Sendable (UUID, Database, ViewRenderer) async -> String?
-    
-    // create type-erased component from any concrete component type
-    init<C: Component>(_ component: C.Type)
-    {
-        self.name = C.name
-        self.template = C.template
-        self.models = C.models
-        
-        // capture concrete type function
-        self._shouldUpdate =
-        { model in
-            return C.shouldUpdate(for: model)
-        }
-        
-        // capture concrete type function
-        self._render =
-        { id, db, renderer in
-            print("*** Server rendering '\(C.name)' (file template)... ")
-            return await C.render(id: id, on: db, using: renderer)
-        }
-    }
-    
-    // forward call to the captured function
-    func shouldUpdate(for model: any Mist.Model) -> Bool
-    {
-        _shouldUpdate(model)
-    }
-    
-    // forward call to the captured function
-    func render(id: UUID, on db: Database, using renderer: ViewRenderer) async -> String?
-    {
-        await _render(id, db, renderer)
-    }
-}
-
 
 // for unit tests
 #if DEBUG
 protocol TestableComponent: Mist.Component
 {
-    static func templateStringLiteral(id: UUID) -> String
+    func templateStringLiteral(id: UUID) -> String
 }
 
-extension AnyComponent
+extension TestableComponent
 {
-    // create type-erased component from any concrete component type
-    init<C: TestableComponent>(_ component: C.Type)
+    // render testable component using in-memory template string literal
+    func render(id: UUID, on db: Database, using renderer: ViewRenderer) async -> String?
     {
-        self.name = C.name
-        self.template = C.template
-        self.models = C.models
+        print("*** Server rendering '\(name)' (string literal template)... ")
         
-        // capture concrete type function
-        self._shouldUpdate =
-        { model in
-            return C.shouldUpdate(for: model)
-        }
+        // create dynamic template data context
+        guard let context = await makeContext(of: id, in: db) else { return nil }
         
-        // capture concrete type function
-        self._render =
-        { id, db, renderer in
-            print("*** Server rendering '\(C.name)' (string literal template)... ")
-            
-            // create dynamic template data context
-            guard let context = await C.makeContext(of: id, in: db) else { return nil }
-            
-            // render testable component using its in-memory template string literal
-            guard let html = try? renderLeafForTesting(C.templateStringLiteral(id: id), with: context) else { return nil }
-            
-            return html
-        }
+        // render testable component using its in-memory template string literal
+        guard let html = try? renderLeafForTesting(templateStringLiteral(id: id), with: context) else { return nil }
+        
+        return html
     }
 }
 

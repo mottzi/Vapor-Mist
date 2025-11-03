@@ -53,8 +53,8 @@ final class MistClientsTests: XCTestCase
         let clientID2 = await addTestClient()
         
         // use testing API to register component
-        await Mist.Components.shared.registerWOListenerForTesting(DummyRow1.self)
-        await Mist.Components.shared.registerWOListenerForTesting(DummyRow2.self)
+        await Mist.Components.shared.registerWOListenerForTesting(DummyRow1())
+        await Mist.Components.shared.registerWOListenerForTesting(DummyRow2())
         
         // use API to add component name to client's subscription set
         var inserted: Bool
@@ -107,8 +107,8 @@ final class MistClientsTests: XCTestCase
         let clientID2 = await addTestClient()
 
         // use testing API to register components
-        await Mist.Components.shared.registerWOListenerForTesting(DummyRow1.self)
-        await Mist.Components.shared.registerWOListenerForTesting(DummyRow2.self)
+        await Mist.Components.shared.registerWOListenerForTesting(DummyRow1())
+        await Mist.Components.shared.registerWOListenerForTesting(DummyRow2())
     
         await Mist.Clients.shared.addSubscription("DummyRow1", to: clientID0)
         

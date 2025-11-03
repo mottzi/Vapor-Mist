@@ -7,7 +7,7 @@ import FluentSQLiteDriver
 
 struct MyComponent: Mist.Component
 {
-    static let models: [any Mist.Model.Type] = [DummyModel1.self, DummyModel2.self]
+    let models: [any Mist.Model.Type] = [DummyModel1.self, DummyModel2.self]
 }
 
 final class MistComponentTests: XCTestCase
@@ -30,7 +30,7 @@ final class MistComponentTests: XCTestCase
         try await app.autoMigrate()
         
         // configure mist with our test component
-        let config = Mist.Configuration(for: app, components: [MyComponent.self])
+        let config = Mist.Configuration(for: app, components: [MyComponent()])
         await Mist.Components.shared.registerComponents(definedIn: config)
         
         // Start the server
@@ -46,7 +46,7 @@ final class MistComponentTests: XCTestCase
         try await model1.save(on: app.db)
         try await model2.save(on: app.db)
         
-        guard let context = await MyComponent.makeContext(of: modelID, in: app.db) else { return XCTFail("No context") }
+        guard let context = await MyComponent().makeContext(of: modelID, in: app.db) else { return XCTFail("No context") }
         
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -103,7 +103,7 @@ final class MistComponentTests: XCTestCase
         app.databases.use(.sqlite(.memory), as: .sqlite)
         app.migrations.add(DummyModel1.Table(), DummyModel2.Table())
         try await app.autoMigrate()
-        let config = Mist.Configuration(for: app, components: [MyComponent.self])
+        let config = Mist.Configuration(for: app, components: [MyComponent()])
         await Mist.Components.shared.registerComponents(definedIn: config)
         
         // Start the server
@@ -128,7 +128,7 @@ final class MistComponentTests: XCTestCase
         """
         
         // get component data context
-        guard let context = await MyComponent.makeContext(of: modelID, in: app.db) else { return XCTFail("Failed to create context") }
+        guard let context = await MyComponent().makeContext(of: modelID, in: app.db) else { return XCTFail("Failed to create context") }
         
         // render template with context
         let html = try renderLeafForTesting(template, with: context)

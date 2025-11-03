@@ -20,7 +20,7 @@ final class MistIntegrationTests: XCTestCase
         app.databases.use(.sqlite(.memory), as: .sqlite)
         
         // register multiple components with dublicate
-        let config = Mist.Configuration(for: app, components: [DumbComp4133.self])
+        let config = Mist.Configuration(for: app, components: [DumbComp4133()])
         await Mist.Components.shared.registerComponents(definedIn: config)
         
         // test this client message
@@ -116,7 +116,7 @@ final class MistIntegrationTests: XCTestCase
         try await app.autoMigrate()
         
         // configure mist with our test component
-        let config = Mist.Configuration(for: app, components: [TestComponent.self])
+        let config = Mist.Configuration(for: app, components: [TestComponent()])
         await Mist.Components.shared.registerComponents(definedIn: config)
         
         // subscription message
@@ -263,14 +263,15 @@ final class MistIntegrationTests: XCTestCase
     
 struct DumbComp4133: Mist.Component
 {
-    static let models: [any Mist.Model.Type] = [DummyModel1.self, DummyModel2.self]
+    let models: [any Mist.Model.Type] = [DummyModel1.self, DummyModel2.self]
 }
 
 struct TestComponent: Mist.TestableComponent
-{    
-    static let models: [any Mist.Model.Type] = [DummyModel1.self, DummyModel2.self]
-        
-    static func templateStringLiteral(id: UUID) -> String
+{
+    
+    let models: [any Mist.Model.Type] = [DummyModel1.self, DummyModel2.self]
+    
+    func templateStringLiteral(id: UUID) -> String
     {
         """
         <div mist-component="TestComponent" mist-id="\(id)">
@@ -280,4 +281,5 @@ struct TestComponent: Mist.TestableComponent
         </div>
         """
     }
+    
 }

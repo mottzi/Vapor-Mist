@@ -44,7 +44,7 @@ struct Listener<M: Mist.Model>: AsyncModelMiddleware
     }
     
     // Process a single component and broadcast update if needed
-    private func renderComponent(_ component: AnyComponent, for model: M, modelID: UUID, db: Database, renderer: ViewRenderer) async
+    private func renderComponent(_ component: any Component, for model: M, modelID: UUID, db: Database, renderer: ViewRenderer) async
     {
         // Only update if component says it should
         guard component.shouldUpdate(for: model) else { return }
