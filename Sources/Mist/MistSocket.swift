@@ -18,7 +18,7 @@ struct Socket
             await Mist.Clients.shared.add(client: clientID, socket: ws)
             
             // send welcome message to client
-            await Mist.Clients.shared.send(.text(message: "Server Welcome Message"), to: clientID)
+            await Mist.Clients.shared.send(.text(message: "Client connected and added to registry."), to: clientID)
             
             // receive client message
             ws.onText()
@@ -33,8 +33,8 @@ struct Socket
                 switch await Mist.Clients.shared.addSubscription(component, to: clientID)
                 {
                     // send confirmation message
-                    case true: await Mist.Clients.shared.send(.text(message: "Subscribed to '\(component)'"), to: clientID)
-                    case false: await Mist.Clients.shared.send(.text(message: "Component '\(component)' not added"), to: clientID)
+                    case true: await Mist.Clients.shared.send(.text(message: "Client subscribed to component '\(component)'."), to: clientID)
+                    case false: await Mist.Clients.shared.send(.text(message: "Client didn't subscribe to component '\(component)'."), to: clientID)
                 }
             }
             

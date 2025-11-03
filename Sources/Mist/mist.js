@@ -99,7 +99,6 @@ class MistSocket
         {
             try
             {
-                console.log(`RAW: ${event.data}`);
                 const data = JSON.parse(event.data);
                 
                 if (data.update)
@@ -111,11 +110,22 @@ class MistSocket
                     {
                         element.outerHTML = html;
                     });
+                    
+                    console.log(`Server update message: '${component}' (${id})`);
+                }
+                else if (data.text)
+                {
+                    const { message } = data.text;
+                    console.log(`Server message: '${message}'`);
+                }
+                else
+                {
+                    console.log(`Unhandled server message (RAW): '${event.data}'`);
                 }
             }
             catch (error)
             {
-                console.error(`WS: Failed to parse message: ${error}`);
+                console.error(`Error parsing server message: '${error}'`);
             }
         };
         
