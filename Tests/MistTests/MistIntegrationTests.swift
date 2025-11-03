@@ -266,7 +266,7 @@ struct DumbComp4133: Mist.Component
     let models: [any Mist.Model.Type] = [DummyModel1.self, DummyModel2.self]
 }
 
-struct TestComponent: Mist.TestableComponent
+struct TestComponent: MistTests.TestableComponent
 {
     
     let models: [any Mist.Model.Type] = [DummyModel1.self, DummyModel2.self]
@@ -283,3 +283,4 @@ struct TestComponent: Mist.TestableComponent
     }
     
 }
+

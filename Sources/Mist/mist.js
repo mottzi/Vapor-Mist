@@ -1,13 +1,11 @@
 // Move this file (mist.js) to: /Public 
 
-class MistSocket
-{
-    constructor()
-    {
-        // websocket
+class MistSocket {
+    
+    constructor() {
+
         this.socket = null;
         
-        // reconnect
         this.timer = null;
         this.initialDelay = 1000;
         this.interval = 5000;
@@ -16,53 +14,32 @@ class MistSocket
         window.addEventListener('online', () => this.connect());
     }
     
-    subscribeToPageComponents()
-    {
+    subscribeToPageComponents() {
+        
         console.log("subscribing to server components...");
         
-        // Collect unique component types using a Set
         const uniqueComponents = new Set();
         
-        // Find all elements with mist-component attribute
-        document.querySelectorAll('[mist-component]').forEach(element =>
-        {
+        document.querySelectorAll('[mist-component]').forEach(element => {
+            
             const component = element.getAttribute('mist-component');
             
-            if (component)
-            {
+            if (component) {
                 uniqueComponents.add(component);
             }
         });
         
-        // Subscribe to each unique component type exactly once
-        uniqueComponents.forEach(component =>
-        {
+        uniqueComponents.forEach(component => {
             this.subscribe(component);
         });
     }
     
-    subscribe(component)
-    {
-        if (this.isConnected())
-        {
-            const message =
-            {
-                subscribe: {
-                    component: component
-                }
-            };
+    subscribe(component) {
+        
+        if (this.isConnected()) {
             
-            this.socket.send(JSON.stringify(message));
-        }
-    }
-    
-    unsubscribe(component)
-    {
-        if (this.isConnected())
-        {
-            const message =
-            {
-                unsubscribe: {
+            const message = {
+                subscribe: {
                     component: component
                 }
             };
@@ -74,76 +51,58 @@ class MistSocket
     isConnected() { return this.socket?.readyState === WebSocket.OPEN; }
     isConnecting() { return this.socket?.readyState === WebSocket.CONNECTING; }
     
-    connect()
-    {
-        // abort if already connected or currently connecting
+    connect() {
+
         if (this.isConnected() || this.isConnecting()) return;
-        
-        // close existing socket
         if (this.socket) { this.socket.close(); this.socket = null; }
         
-        // create new socket and try to connect
         this.socket = new WebSocket('wss://mottzi.de/mist/ws/');
         
-        // connected: stop existing reconnect timer
-        this.socket.onopen = () =>
-        {
+        this.socket.onopen = () => {
+            
             if (this.timer) { clearInterval(this.timer); this.timer = null; }
             
-            // subscribe to components after ws connection is established
             this.subscribeToPageComponents();
         };
         
-        // parse incoming messages
-        this.socket.onmessage = (event) =>
-        {
-            try
-            {
+        this.socket.onmessage = (event) => {
+            try {
+                
                 const data = JSON.parse(event.data);
                 
-                if (data.update)
-                {
+                if (data.update) {
                     const { component, id, html } = data.update;
                     const elements = document.querySelectorAll(`[mist-component="${component}"][mist-id="${id}"]`);
                     
-                    elements.forEach(element =>
-                    {
+                    elements.forEach(element => {
                         element.outerHTML = html;
                     });
                     
                     console.log(`Server update message: '${component}' (${id})`);
                 }
-                else if (data.text)
-                {
+                else if (data.text) {
                     const { message } = data.text;
                     console.log(`Server message: '${message}'`);
                 }
-                else
-                {
+                else {
                     console.log(`Unhandled server message (RAW): '${event.data}'`);
                 }
             }
-            catch (error)
-            {
+            catch (error) {
                 console.error(`Error parsing server message: '${error}'`);
             }
         };
         
-        // disconnected: start reconnect timer
-        this.socket.onclose = () =>
-        {
-            // abort if a reconnect timer is already running
+        this.socket.onclose = () => {
+
             if (this.timer) return
                 
-                console.log("WS: ... closed -> Connect in 1s ...");
+            console.log("WS: ... closed -> Connect in 1s ...");
             
-            // start trying every 5s
-            setTimeout(() =>
-            {
+            setTimeout(() => {
                 this.connect();
                 
-                this.timer = setInterval(() =>
-                {
+                this.timer = setInterval(() => {
                     this.connect();
                 },
                 this.interval);
@@ -152,10 +111,8 @@ class MistSocket
         };
     }
     
-    visibilityChange()
-    {
-        if (document.visibilityState === "visible")
-        {
+    visibilityChange() {
+        if (document.visibilityState === "visible") {
             console.log('visibilityState === "visible" -> calling connect()')
             this.connect();
         }
@@ -163,8 +120,7 @@ class MistSocket
 }
 
 // Wait for the DOM to be fully loaded before executing the code
-document.addEventListener('DOMContentLoaded', function ()
-{
+document.addEventListener('DOMContentLoaded', function () {
     window.ws = new MistSocket();
     window.ws.connect()
 });
