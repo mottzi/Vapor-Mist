@@ -1,7 +1,7 @@
 import Vapor
 import Fluent
 
-extension Model
+extension Mist.Model
 {
     // registers db middleware listener on Fluent db changes
     static func createListener(using config: Mist.Configuration, on db: DatabaseID?)
@@ -34,7 +34,7 @@ struct Listener<M: Mist.Model>: AsyncModelMiddleware
         guard let modelID = model.id else { return }
         
         // get type-safe components registered for this model type
-        let components = await Components.shared.getComponents(using: M.self)
+        let components = await Mist.Components.shared.getComponents(using: M.self)
         
         // process each component
         for component in components
@@ -44,7 +44,7 @@ struct Listener<M: Mist.Model>: AsyncModelMiddleware
     }
     
     // Process a single component and broadcast update if needed
-    private func renderComponent(_ component: any Component, for model: M, modelID: UUID, db: Database, renderer: ViewRenderer) async
+    private func renderComponent(_ component: any Mist.Component, for model: M, modelID: UUID, db: Database, renderer: ViewRenderer) async
     {
         // Only update if component says it should
         guard component.shouldUpdate(for: model) else { return }
@@ -53,7 +53,7 @@ struct Listener<M: Mist.Model>: AsyncModelMiddleware
         guard let html = await component.render(id: modelID, on: db, using: renderer) else { return }
                     
         // create update message with component data
-        let message = Message.update(
+        let message = Mist.Message.update(
             component: component.name,
             // action: "update",
             id: modelID,
@@ -61,6 +61,6 @@ struct Listener<M: Mist.Model>: AsyncModelMiddleware
         )
                     
         // broadcast to all connected clients
-        await Clients.shared.broadcast(message)
+        await Mist.Clients.shared.broadcast(message)
     }
 }

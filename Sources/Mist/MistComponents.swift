@@ -8,10 +8,10 @@ actor Components
     private init() { }
     
     // mist component storage (native existential type)
-    private var components: [any Component] = []
+    private var components: [any Mist.Component] = []
     
     // retrieve all components that use a specific model
-    func getComponents<M: Mist.Model>(using model: M.Type) -> [any Component] {
+    func getComponents<M: Mist.Model>(using model: M.Type) -> [any Mist.Component] {
         components.filter { $0.models.contains { $0 == model } }
     }
     
@@ -22,7 +22,7 @@ actor Components
     }
 }
 
-extension Components
+extension Mist.Components
 {
     // initialize component system
     func registerComponents(definedIn config: Mist.Configuration) async
@@ -49,7 +49,7 @@ extension Components
 }
 
 #if DEBUG
-extension Components
+extension Mist.Components
 {
     func registerWOListenerForTesting(_ component: any Mist.Component)
     {

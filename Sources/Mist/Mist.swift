@@ -1,13 +1,13 @@
 import Vapor
 import Fluent
 
-public func configure(using config: Configuration) async
+public func configure(using config: Mist.Configuration) async
 {
     // registers components in config with MistComponents
-    await Components.shared.registerComponents(definedIn: config)
+    await Mist.Components.shared.registerComponents(definedIn: config)
     
     // registers subscription socket on server app
-    Socket.register(on: config.app)
+    Mist.Socket.register(on: config.app)
 }
 
 public struct Configuration: Sendable

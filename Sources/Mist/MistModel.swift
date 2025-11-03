@@ -5,7 +5,7 @@ import Fluent
 public protocol Model: Fluent.Model where IDValue == UUID {}
 
 // type-erased fluent model for mist db operations
-public extension Model
+public extension Mist.Model
 {
     // type-erased find function as closure that captures concrete model type
     static var find: (UUID, Database) async -> (any Mist.Model)?

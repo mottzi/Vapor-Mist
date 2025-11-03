@@ -23,7 +23,7 @@ public protocol Component: Sendable
 
 
 // default naming
-public extension Component
+public extension Mist.Component
 {
     // name matches component type name
     var name: String { String(describing: Self.self) }
@@ -33,7 +33,7 @@ public extension Component
 }
 
 // default context
-public extension Component
+public extension Mist.Component
 {
     // create single component context
     func makeContext(of componentID: UUID, in db: Database) async -> Mist.SingleComponentContext?
@@ -95,7 +95,7 @@ public extension Component
 }
 
 // rendering
-public extension Component
+public extension Mist.Component
 {
     // render component using dynamically generated template context
     func render(id: UUID, on db: Database, using renderer: ViewRenderer) async -> String?
