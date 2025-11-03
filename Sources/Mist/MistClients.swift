@@ -68,31 +68,24 @@ extension Clients
 extension Clients
 {
     // send message to specific client
-    func send(_ message: TextMessage, to clientID: UUID) async
+    func send(_ message: Mist.Message, to clientID: UUID) async
     {
-        let codableMessage = message.prepareMessage()
-        
-        guard let client = clients.first(where: { $0.id == clientID }),
-              let jsonData = try? JSONEncoder().encode(codableMessage),
-              let jsonString = String(data: jsonData, encoding: .utf8)
-        else { return }
+        guard case .text = message else { return }
+        guard let client = clients.first(where: { $0.id == clientID }) else { return }
+        guard let jsonData = try? JSONEncoder().encode(message) else { return }
+        guard let jsonString = String(data: jsonData, encoding: .utf8) else { return }
         
         try? await client.socket.send(jsonString)
     }
     
     // send model update message to all subscribed clients
-    func broadcast(_ message: UpdateMessage) async
+    func broadcast(_ message: Mist.Message) async
     {
-        let codableMessage = message.prepareMessage()
-        
-        guard let jsonData = try? JSONEncoder().encode(codableMessage),
-              let jsonString = String(data: jsonData, encoding: .utf8)
-        else { return }
-        
         guard case .update(let component, _, _) = message else { return }
-        let subscribers = getSubscribers(of: component)
-        
-        for subscriber in subscribers {
+        guard let jsonData = try? JSONEncoder().encode(message) else { return }
+        guard let jsonString = String(data: jsonData, encoding: .utf8) else { return }
+                
+        for subscriber in getSubscribers(of: component) {
             Task { try? await subscriber.socket.send(jsonString) }
         }
     }
