@@ -16,7 +16,7 @@ final class MistMessageTests: XCTestCase
     // tests decoding json subscription message to Mist.Message type
     func testSubscriptionDecoding() async
     {
-        let text = #"{ "type": "subscribe", "component": "TestComponent2" }"#
+        let text = #"{ "subscribe": { "component": "TestComponent2" } }"#
         
         // try to decode json message to mist subscribe message
         guard let data = text.data(using: .utf8) else { return XCTFail("Failed to convert JSON string to data") }
@@ -39,9 +39,10 @@ final class MistMessageTests: XCTestCase
         guard let dict = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] else { return XCTFail("Failed to convert json to dictionary") }
         
         // Verify JSON structure and values
-        XCTAssertEqual(dict["type"] as? String, "subscribe", "Type should be 'subscribe'")
-        XCTAssertEqual(dict["component"] as? String, "TestComponent2", "Component should match")
-        XCTAssertEqual(dict.count, 2, "JSON should only have 2 keys")
+        XCTAssertNotNil(dict["subscribe"], "Should have 'subscribe' key")
+        guard let subscribeDict = dict["subscribe"] as? [String: Any] else { return XCTFail("Subscribe should be a dictionary") }
+        XCTAssertEqual(subscribeDict["component"] as? String, "TestComponent2", "Component should match")
+        XCTAssertEqual(dict.count, 1, "JSON should only have 1 key (the case name)")
     }
     
     // tests decoding json update message to Mist.Message type
@@ -54,11 +55,11 @@ final class MistMessageTests: XCTestCase
         let text =
         """
         {
-            "type": "update",
-            "component": "TestComponent",
-            "action": "update",
-            "id": "\(testUUID)",
-            "html": "<div>Updated content</div>"
+            "update": {
+                "component": "TestComponent",
+                "id": "\(testUUID)",
+                "html": "<div>Updated content</div>"
+            }
         }
         """
         
@@ -85,7 +86,6 @@ final class MistMessageTests: XCTestCase
         // Create a update message
         let updateMessage = Mist.Message.update(
             component: "TestComponent",
-//            action: "update",
             id: testUUID,
             html: "<div>Updated content</div>"
         )
@@ -97,11 +97,14 @@ final class MistMessageTests: XCTestCase
         guard let dict = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] else { return XCTFail("Failed to convert json to dictionary") }
         
         // Verify JSON structure and values
-        XCTAssertEqual(dict["type"] as? String, "update", "Type should be 'update'")
-        XCTAssertEqual(dict["component"] as? String, "TestComponent", "Component should match")
+        XCTAssertNotNil(dict["update"], "Should have 'update' key")
+        guard let updateDict = dict["update"] as? [String: Any] else {
+            return XCTFail("Update should be a dictionary")
+        }
+        XCTAssertEqual(updateDict["component"] as? String, "TestComponent", "Component should match")
 //        XCTAssertEqual(dict["action"] as? String, "update", "Action should match")
-        XCTAssertEqual(dict["id"] as? String, testUUID.uuidString, "UUID should match")
-        XCTAssertEqual(dict["html"] as? String, "<div>Updated content</div>", "HTML should match")
-        XCTAssertEqual(dict.count, 4, "JSON should have 5 keys")
+        XCTAssertEqual(updateDict["id"] as? String, testUUID.uuidString, "UUID should match")
+        XCTAssertEqual(updateDict["html"] as? String, "<div>Updated content</div>", "HTML should match")
+        XCTAssertEqual(dict.count, 1, "JSON should have 1 key (the case name)")
     }
 }

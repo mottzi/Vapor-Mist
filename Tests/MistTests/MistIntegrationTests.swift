@@ -24,7 +24,7 @@ final class MistIntegrationTests: XCTestCase
         await Mist.Components.shared.registerComponents(definedIn: config)
         
         // test this client message
-        let subscriptionMessage = #"{ "type": "subscribe", "component": "DumbComp4133" }"#
+        let subscriptionMessage = #"{ "subscribe": { "component": "DumbComp4133" } }"#
         
         // set up websocket on server
         app.webSocket("socket")
@@ -120,7 +120,7 @@ final class MistIntegrationTests: XCTestCase
         await Mist.Components.shared.registerComponents(definedIn: config)
         
         // subscription message
-        let subscriptionMessage = #"{ "type": "subscribe", "component": "TestComponent" }"#
+        let subscriptionMessage = #"{ "subscribe": { "component": "TestComponent" } }"#
         
         // create component models
         let modelID = UUID()
