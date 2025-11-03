@@ -3,10 +3,7 @@ import Fluent
 import Leaf
 import LeafKit
 
-// fake namespace
-enum Socket { }
-
-extension Socket
+struct Socket
 {
     // registers websocket endpoint on vapor server
     static func register(on app: Application)
@@ -20,7 +17,7 @@ extension Socket
             // add new connection to actor
             await Mist.Clients.shared.add(client: clientID, socket: ws)
             
-            try? await ws.send("{ \"msg\": \"Server Welcome Message\" }")
+            await Mist.Clients.shared.send(.text("Server Welcome Message"), to: clientID)
             
             // receive client message
             ws.onText()
@@ -35,8 +32,8 @@ extension Socket
                 switch await Mist.Clients.shared.addSubscription(component, to: clientID)
                 {
                     // send confirmation message
-                    case true: try? await ws.send("{ \"msg\": \"Subscribed to '\(component)'\" }")
-                    case false: try? await ws.send("{ \"error\": \"Component '\(component)' not added\" }")
+                    case true: await Mist.Clients.shared.send(.text("Subscribed to '\(component)'"), to: clientID)
+                    case false: await Mist.Clients.shared.send(.text("Component '\(component)' not added"), to: clientID)
                 }
             }
             

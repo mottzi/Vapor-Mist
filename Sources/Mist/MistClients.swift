@@ -64,21 +64,30 @@ extension Clients
     }
 }
 
-// broadcasting
+// messaging
 extension Clients
 {
-    // send model update message to all subscribed clients
-    func broadcast(_ message: Mist.Message) async
+    // send message to specific client
+    func send(_ message: Mist.Message, to clientID: UUID) async
     {
-        // encode component update message
-        guard case .update(let component, /*_,*/ _, _) = message else { return }
+        guard let client = clients.first(where: { $0.id == clientID }) else { return }
+        
         guard let jsonData = try? JSONEncoder().encode(message) else { return }
         guard let jsonString = String(data: jsonData, encoding: .utf8) else { return }
         
-        // get subscribed clients of component
+        try? await client.socket.send(jsonString)
+    }
+    
+    // send model update message to all subscribed clients
+    func broadcast(_ message: Mist.Message) async
+    {
+        guard case .update(let component, _, _) = message else { return }
+        
+        guard let jsonData = try? JSONEncoder().encode(message) else { return }
+        guard let jsonString = String(data: jsonData, encoding: .utf8) else { return }
+        
         let subscribers = getSubscribers(of: component)
         
-        // send update message payload
         for subscriber in subscribers { Task { try? await subscriber.socket.send(jsonString) } }
     }
 }
