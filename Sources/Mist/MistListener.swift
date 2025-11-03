@@ -6,8 +6,7 @@ extension Mist.Model
     // registers db middleware listener on Fluent db changes
     static func createListener(using config: Mist.Configuration, on db: DatabaseID?)
     {
-        print("*** Listener created for model '\(String(describing: self))' .")
-        config.app.databases.middleware.use(Mist.Listener<Self>(using: config), on: db)
+        config.app.databases.middleware.use(Mist.Listener<Self>(config: config), on: db)
     }
 }
 
@@ -15,18 +14,10 @@ extension Mist.Model
 struct Listener<M: Mist.Model>: AsyncModelMiddleware
 {
     let config: Mist.Configuration
-    let logger = Logger(label: "[Mist]")
-    
-    init(using config: Mist.Configuration)
-    {
-        self.config = config
-    }
     
     // update callback
     func update(model: M, on db: Database, next: AnyAsyncModelResponder) async throws
-    {
-        print("*** Listener triggered for model '\(String(describing: model.self))' .")
-        
+    {        
         // perform middleware chain
         try await next.update(model, on: db)
         
@@ -51,16 +42,12 @@ struct Listener<M: Mist.Model>: AsyncModelMiddleware
              
         // render using ID and database OR test update
         guard let html = await component.render(id: modelID, on: db, using: renderer) else { return }
-                    
-        // create update message with component data
-        let message = Mist.Message.update(
+         
+        // broadcast to all connected clients
+        await Mist.Clients.shared.broadcast(.update(
             component: component.name,
-            // action: "update",
             id: modelID,
             html: html
-        )
-                    
-        // broadcast to all connected clients
-        await Mist.Clients.shared.broadcast(message)
+        ))
     }
 }

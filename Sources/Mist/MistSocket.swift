@@ -18,7 +18,7 @@ struct Socket
             await Mist.Clients.shared.add(client: clientID, socket: ws)
             
             // send welcome message to client
-            await Mist.Clients.shared.send(.text(message: "Client connected and added to registry."), to: clientID)
+            await Mist.Clients.shared.send(.text(message: "Client connected and was added to registry."), to: clientID)
             
             // receive client message
             ws.onText()
@@ -28,14 +28,13 @@ struct Socket
                 guard let data = text.data(using: .utf8) else { return }
                 guard let message = try? JSONDecoder().decode(Mist.Message.self, from: data) else { return }
                 guard case .subscribe(let component) = message else { return }
-                        
-                // add component subscription to client
-                switch await Mist.Clients.shared.addSubscription(component, to: clientID)
-                {
-                    // send confirmation message
-                    case true: await Mist.Clients.shared.send(.text(message: "Client subscribed to component '\(component)'."), to: clientID)
-                    case false: await Mist.Clients.shared.send(.text(message: "Client didn't subscribe to component '\(component)'."), to: clientID)
-                }
+
+                let success = await Mist.Clients.shared.addSubscription(component, to: clientID)
+                let response = success 
+                    ? "Client subscribed to component '\(component)'." 
+                    : "Client didn't subscribe to component '\(component)'."
+
+                await Mist.Clients.shared.send(.text(message: response), to: clientID)
             }
             
             // remove connection from actor on close
