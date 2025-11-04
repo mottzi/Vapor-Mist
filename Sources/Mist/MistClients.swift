@@ -22,11 +22,11 @@ extension Clients {
     }
     
     func add(client id: UUID, socket: WebSocket) {
-        return clients.append(Client(id: id, socket: socket))
+        clients.append(Client(id: id, socket: socket))
     }
     
     func remove(client id: UUID) {
-        return clients.removeAll { $0.id == id }
+        clients.removeAll { $0.id == id }
     }
     
     func getSubscribers(of component: String) -> [Client] {

@@ -8,6 +8,7 @@ actor Components {
     private init() {}
     
     var components: [any Mist.Component] = []
+    var modelToComponents: [ObjectIdentifier: [any Mist.Component]] = [:]
     
 }
 
@@ -26,11 +27,18 @@ extension Mist.Components {
             }
             
             components.append(component)
+            
+            // Populate reverse index for O(1) model-to-component lookup
+            for model in component.models {
+                let key = ObjectIdentifier(model)
+                modelToComponents[key, default: []].append(component)
+            }
         }
     }
     
     func components<M: Mist.Model>(using model: M.Type) -> [any Mist.Component] {
-        return components.filter { $0.models.contains { $0 == model } }
+        let key = ObjectIdentifier(M.self)
+        return modelToComponents[key] ?? []
     }
     
     func hasComponent(usingName name: String) -> Bool {

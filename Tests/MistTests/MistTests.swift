@@ -30,6 +30,12 @@ extension Mist.Components {
     func registerWOListenerForTesting(_ component: any Mist.Component) {
         guard components.contains(where: { $0.name == component.name }) == false else { return }
         components.append(component)
+        
+        // Populate reverse index for O(1) model-to-component lookup
+        for model in component.models {
+            let key = ObjectIdentifier(model)
+            modelToComponents[key, default: []].append(component)
+        }
     }
     
     func getStorgeForTesting() async -> [any Mist.Component] {
@@ -38,6 +44,7 @@ extension Mist.Components {
     
     func resetForTesting() async {
         components = []
+        modelToComponents = [:]
     }
     
 }
