@@ -119,13 +119,13 @@ final class MistClientsTests: XCTestCase
         await Mist.Clients.shared.addSubscription("DummyRow3", to: clientID2)
         await Mist.Clients.shared.addSubscription("DummyRow3", to: UUID())
         
-        let subscribers1 = await Mist.Clients.shared.getSubscribers(of: "DummyRow1").map { $0.id }
+        let subscribers1 = await Mist.Clients.shared.subscribers(of: "DummyRow1").map { $0.id }
         XCTAssertEqual(subscribers1, [clientID0, clientID1])
         
-        let subscribers2 = await Mist.Clients.shared.getSubscribers(of: "DummyRow2").map { $0.id }
+        let subscribers2 = await Mist.Clients.shared.subscribers(of: "DummyRow2").map { $0.id }
         XCTAssertEqual(subscribers2, [clientID1])
         
-        let subscribers3 = await Mist.Clients.shared.getSubscribers(of: "DummyRow3").map { $0.id }
+        let subscribers3 = await Mist.Clients.shared.subscribers(of: "DummyRow3").map { $0.id }
         XCTAssertEqual(subscribers3, [])
     }
     
@@ -147,18 +147,18 @@ final class MistClientsTests: XCTestCase
         await Mist.Clients.shared.addSubscription("DummyRow2", to: clientID2)
         
         // test reverse index lookup
-        let subscribers1 = await Mist.Clients.shared.getSubscribers(of: "DummyRow1")
+        let subscribers1 = await Mist.Clients.shared.subscribers(of: "DummyRow1")
         XCTAssertEqual(subscribers1.count, 2, "DummyRow1 should have 2 subscribers")
         XCTAssertTrue(subscribers1.contains(where: { $0.id == clientID0 }))
         XCTAssertTrue(subscribers1.contains(where: { $0.id == clientID1 }))
         
-        let subscribers2 = await Mist.Clients.shared.getSubscribers(of: "DummyRow2")
+        let subscribers2 = await Mist.Clients.shared.subscribers(of: "DummyRow2")
         XCTAssertEqual(subscribers2.count, 2, "DummyRow2 should have 2 subscribers")
         XCTAssertTrue(subscribers2.contains(where: { $0.id == clientID1 }))
         XCTAssertTrue(subscribers2.contains(where: { $0.id == clientID2 }))
         
         // test non-existent component
-        let subscribers3 = await Mist.Clients.shared.getSubscribers(of: "NonExistent")
+        let subscribers3 = await Mist.Clients.shared.subscribers(of: "NonExistent")
         XCTAssertEqual(subscribers3.count, 0, "Non-existent component should have no subscribers")
     }
     
@@ -179,21 +179,21 @@ final class MistClientsTests: XCTestCase
         await Mist.Clients.shared.addSubscription("DummyRow2", to: clientID1)
         
         // verify initial state
-        var subscribers1 = await Mist.Clients.shared.getSubscribers(of: "DummyRow1")
+        var subscribers1 = await Mist.Clients.shared.subscribers(of: "DummyRow1")
         XCTAssertEqual(subscribers1.count, 2)
         
-        var subscribers2 = await Mist.Clients.shared.getSubscribers(of: "DummyRow2")
+        var subscribers2 = await Mist.Clients.shared.subscribers(of: "DummyRow2")
         XCTAssertEqual(subscribers2.count, 2)
         
         // remove first client
         await Mist.Clients.shared.removeClient(id: clientID0)
         
         // verify reverse index was updated
-        subscribers1 = await Mist.Clients.shared.getSubscribers(of: "DummyRow1")
+        subscribers1 = await Mist.Clients.shared.subscribers(of: "DummyRow1")
         XCTAssertEqual(subscribers1.count, 1, "DummyRow1 should have 1 subscriber after removal")
         XCTAssertEqual(subscribers1[0].id, clientID1)
         
-        subscribers2 = await Mist.Clients.shared.getSubscribers(of: "DummyRow2")
+        subscribers2 = await Mist.Clients.shared.subscribers(of: "DummyRow2")
         XCTAssertEqual(subscribers2.count, 1, "DummyRow2 should have 1 subscriber after removal")
         XCTAssertEqual(subscribers2[0].id, clientID1)
         
@@ -201,10 +201,10 @@ final class MistClientsTests: XCTestCase
         await Mist.Clients.shared.removeClient(id: clientID1)
         
         // verify reverse index is empty (no memory leaks)
-        subscribers1 = await Mist.Clients.shared.getSubscribers(of: "DummyRow1")
+        subscribers1 = await Mist.Clients.shared.subscribers(of: "DummyRow1")
         XCTAssertEqual(subscribers1.count, 0, "DummyRow1 should have no subscribers")
         
-        subscribers2 = await Mist.Clients.shared.getSubscribers(of: "DummyRow2")
+        subscribers2 = await Mist.Clients.shared.subscribers(of: "DummyRow2")
         XCTAssertEqual(subscribers2.count, 0, "DummyRow2 should have no subscribers")
         
         // verify internal state is clean (no memory leaks)
@@ -223,7 +223,7 @@ final class MistClientsTests: XCTestCase
         await Mist.Clients.shared.addSubscription("DummyRow1", to: clientID)
         
         // verify subscription exists
-        var subscribers = await Mist.Clients.shared.getSubscribers(of: "DummyRow1")
+        var subscribers = await Mist.Clients.shared.subscribers(of: "DummyRow1")
         XCTAssertEqual(subscribers.count, 1)
         
         // verify component key exists in reverse index
@@ -234,7 +234,7 @@ final class MistClientsTests: XCTestCase
         await Mist.Clients.shared.removeClient(id: clientID)
         
         // verify subscriber list is empty
-        subscribers = await Mist.Clients.shared.getSubscribers(of: "DummyRow1")
+        subscribers = await Mist.Clients.shared.subscribers(of: "DummyRow1")
         XCTAssertEqual(subscribers.count, 0)
         
         // verify component key is removed from reverse index (no memory leak)
