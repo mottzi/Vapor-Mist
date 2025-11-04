@@ -11,7 +11,7 @@ struct Socket {
             
             let clientID = UUID()
             await Mist.Clients.shared.addClient(id: clientID, socket: ws)
-            await Mist.Clients.shared.send(.text(message: "Client connected and was added to registry."), to: clientID)
+            await Mist.Clients.shared.send(Message.Text("Client connected and was added to registry."), to: clientID)
             
             ws.onText() { ws, text async in
                 
@@ -24,7 +24,7 @@ struct Socket {
                     ? "Client subscribed to component '\(component)'." 
                     : "Client didn't subscribe to component '\(component)'."
 
-                await Mist.Clients.shared.send(.text(message: response), to: clientID)
+                await Mist.Clients.shared.send(Message.Text(response), to: clientID)
             }
             
             ws.onClose.whenComplete() { _ in

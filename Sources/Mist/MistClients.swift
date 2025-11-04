@@ -40,16 +40,18 @@ extension Clients {
         clients.remove(at: clientIndex)
     }
     
-    func getSubscribers(of component: String) -> [Client] {
+    func subscribers(of component: String) -> [Client] {
         // lookup subscriber IDs from lookup dictionary
         guard let subscriberIDs = componentToClients[component] else { return [] }
         return clients.filter { subscriberIDs.contains($0.id) }
     }
+    
 }
     
 extension Clients {
     
-    @discardableResult func addSubscription(_ component: String, to client: UUID) async -> Bool {
+    @discardableResult
+    func addSubscription(_ component: String, to client: UUID) async -> Bool {
 
         guard await Components.shared.hasComponent(usingName: component) else { return false }
         guard let index = clients.firstIndex(where: { $0.id == client }) else { return false }
@@ -63,28 +65,5 @@ extension Clients {
         
         return result.inserted
     }
-}
-
-extension Clients {
-
-    func send(_ message: Mist.Message, to clientID: UUID) async {
-        
-        guard case .text = message else { return }
-        guard let client = clients.first(where: { $0.id == clientID }) else { return }
-        guard let jsonData = try? JSONEncoder().encode(message) else { return }
-        guard let jsonString = String(data: jsonData, encoding: .utf8) else { return }
-        
-        try? await client.socket.send(jsonString)
-    }
     
-    func broadcast(_ message: Mist.Message) async {
-        
-        guard case .update(let component, _, _) = message else { return }
-        guard let jsonData = try? JSONEncoder().encode(message) else { return }
-        guard let jsonString = String(data: jsonData, encoding: .utf8) else { return }
-                
-        for subscriber in getSubscribers(of: component) {
-            Task { try? await subscriber.socket.send(jsonString) }
-        }
-    }
 }

@@ -29,7 +29,7 @@ public struct ModelContainer: Encodable {
         return models.isEmpty
     }
 
-    // Add a model instance to the container
+    // add a model instance to the container
     public mutating func add<M: Mist.Model>(_ model: M, for key: String) {
         models[key] = model
     }

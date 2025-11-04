@@ -3,16 +3,16 @@ import Fluent
 
 extension Mist.Model {
 
-    static func registerListener(using config: Mist.Configuration) {
-        let listener = Mist.Listener<Self>(config: config)
+    static func registerListener(using config: Configuration) {
+        let listener = Listener<Self>(config: config)
         config.app.databases.middleware.use(listener, on: config.db)
     }
     
 }
 
-struct Listener<M: Mist.Model>: AsyncModelMiddleware {
+struct Listener<M: Model>: AsyncModelMiddleware {
     
-    let config: Mist.Configuration
+    let config: Configuration
     
     func update(model: M, on db: Database, next: AnyAsyncModelResponder) async throws {
         
@@ -20,7 +20,7 @@ struct Listener<M: Mist.Model>: AsyncModelMiddleware {
         
         guard let modelID = model.id else { return }
         
-        for component in await Mist.Components.shared.components(using: M.self) {
+        for component in await Components.shared.components(using: M.self) {
             
             guard component.shouldUpdate(for: model) else { continue }
             guard let html = await component.render(
@@ -29,8 +29,8 @@ struct Listener<M: Mist.Model>: AsyncModelMiddleware {
                 using: config.app.leaf.renderer)
             else { continue }
             
-            await Mist.Clients.shared.broadcast(
-                Message.update(
+            await Clients.shared.broadcast(
+                Message.Update(
                     component: component.name,
                     id: modelID,
                     html: html
