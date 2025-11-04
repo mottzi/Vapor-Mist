@@ -38,10 +38,6 @@ extension Mist.Components {
         }
     }
     
-    func getStorgeForTesting() async -> [any Mist.Component] {
-        return components
-    }
-    
     func resetForTesting() async {
         components = []
         modelToComponents = [:]
@@ -55,8 +51,13 @@ extension Clients {
         return clients
     }
     
+    func getReverseIndexForTesting() -> [String: Set<UUID>] {
+        return componentToClients
+    }
+    
     func resetForTesting() async {
         clients = []
+        componentToClients = [:]
     }
     
 }
