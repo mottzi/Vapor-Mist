@@ -46,7 +46,8 @@ extension Mist.Components {
     }
     
     func hasComponent(usingModel model: any Model.Type) -> Bool {
-        return components.contains { $0.models.contains { $0 == model } }
+        let key = ObjectIdentifier(model)
+        return modelToComponents[key] != nil
     }
     
 }
