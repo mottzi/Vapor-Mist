@@ -34,7 +34,7 @@ final class MistIntegrationTests: XCTestCase
             let clientID = UUID()
             
             // use API to add client to internal storage
-            await Mist.Clients.shared.add(client: clientID, socket: ws)
+            await Mist.Clients.shared.addClient(id: clientID, socket: ws)
             
             // get internal storage
             let clients = await Mist.Clients.shared.getClients()
@@ -148,7 +148,7 @@ final class MistIntegrationTests: XCTestCase
             
             // add client to registry
             let clientID = UUID()
-            await Mist.Clients.shared.add(client: clientID, socket: ws)
+            await Mist.Clients.shared.addClient(id: clientID, socket: ws)
             
             // handle client messages
             ws.onText()

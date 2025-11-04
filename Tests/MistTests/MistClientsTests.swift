@@ -35,7 +35,7 @@ final class MistClientsTests: XCTestCase
         let clientID = await addTestClient()
         
         // remove test client
-        await Mist.Clients.shared.remove(client: clientID)
+        await Mist.Clients.shared.removeClient(id: clientID)
         
         // load internal storage
         let clients = await Mist.Clients.shared.getClients()
@@ -146,7 +146,7 @@ extension MistClientsTests
         let clientID = UUID()
         
         // use API to add test client to internal storage
-        await Mist.Clients.shared.add(client: clientID, socket: WebSocket.dummy)
+        await Mist.Clients.shared.addClient(id: clientID, socket: WebSocket.dummy)
         
         return clientID
     }

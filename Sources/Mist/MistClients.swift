@@ -8,6 +8,7 @@ actor Clients {
     private init() { }
     
     var clients: [Client] = []
+    var componentToClients: [String: Set<UUID>] = [:]
     
 }
 
@@ -21,16 +22,28 @@ extension Clients {
         
     }
     
-    func add(client id: UUID, socket: WebSocket) {
+    func addClient(id: UUID, socket: WebSocket) {
         clients.append(Client(id: id, socket: socket))
     }
     
-    func remove(client id: UUID) {
-        clients.removeAll { $0.id == id }
+    func removeClient(id: UUID) {
+        // abort if client not found in registry
+        guard let clientIndex = clients.firstIndex(where: { $0.id == id }) else { return }
+        // remove client from lookup dictionary
+        let clientSubscriptions = clients[clientIndex].subscriptions
+        for component in clientSubscriptions {
+            guard var subscribers = componentToClients[component] else { continue }
+            subscribers.remove(id)
+            componentToClients[component] = subscribers.isEmpty ? nil : subscribers
+        }
+        // remove client from registry
+        clients.remove(at: clientIndex)
     }
     
     func getSubscribers(of component: String) -> [Client] {
-        return clients.filter { $0.subscriptions.contains(component) }
+        // lookup subscriber IDs from lookup dictionary
+        guard let subscriberIDs = componentToClients[component] else { return [] }
+        return clients.filter { subscriberIDs.contains($0.id) }
     }
 }
     
@@ -42,6 +55,12 @@ extension Clients {
         guard let index = clients.firstIndex(where: { $0.id == client }) else { return false }
         
         let result = clients[index].subscriptions.insert(component)
+        
+        // update reverse index
+        if result.inserted {
+            componentToClients[component, default: []].insert(client)
+        }
+        
         return result.inserted
     }
 }

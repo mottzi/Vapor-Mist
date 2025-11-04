@@ -10,7 +10,7 @@ struct Socket {
         app.webSocket("mist", "ws") { request, ws async in
             
             let clientID = UUID()
-            await Mist.Clients.shared.add(client: clientID, socket: ws)
+            await Mist.Clients.shared.addClient(id: clientID, socket: ws)
             await Mist.Clients.shared.send(.text(message: "Client connected and was added to registry."), to: clientID)
             
             ws.onText() { ws, text async in
@@ -28,7 +28,7 @@ struct Socket {
             }
             
             ws.onClose.whenComplete() { _ in
-                Task { await Mist.Clients.shared.remove(client: clientID) }
+                Task { await Mist.Clients.shared.removeClient(id: clientID) }
             }
         }
     }
