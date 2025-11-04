@@ -22,7 +22,7 @@ final class MistComponentsTest: XCTestCase
         
         // register multiple components with dublicate
         let config = Mist.Configuration(for: app, components: [DummyRow1(), DummyRow2(), DummyRow1()])
-        await Mist.Components.shared.registerComponents(definedIn: config)
+        await Mist.Components.shared.registerComponents(using: config)
         
         // get internal component registry
         let componentsArray = await Mist.Components.shared.getStorgeForTesting()
@@ -53,12 +53,12 @@ final class MistComponentsTest: XCTestCase
         
         // register multiple components with dublicate
         let config = Mist.Configuration(for: app, components: [DummyRow1(), DummyRow2(), DummyRow1()])
-        await Mist.Components.shared.registerComponents(definedIn: config)
+        await Mist.Components.shared.registerComponents(using: config)
         
         // use model-based component lookup API
-        let model1Components = await Mist.Components.shared.getComponents(using: DummyModel1.self)
-        let model2Components = await Mist.Components.shared.getComponents(using: DummyModel2.self)
-        let model3Components = await Mist.Components.shared.getComponents(using: DummyModel3.self)
+        let model1Components = await Mist.Components.shared.components(using: DummyModel1.self)
+        let model2Components = await Mist.Components.shared.components(using: DummyModel2.self)
+        let model3Components = await Mist.Components.shared.components(using: DummyModel3.self)
 
         // test results of API for first model
         XCTAssertEqual(model1Components.count, 2, "Expected exactly 2 components for DummyModel1")

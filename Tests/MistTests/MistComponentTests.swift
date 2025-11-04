@@ -31,7 +31,7 @@ final class MistComponentTests: XCTestCase
         
         // configure mist with our test component
         let config = Mist.Configuration(for: app, components: [MyComponent()])
-        await Mist.Components.shared.registerComponents(definedIn: config)
+        await Mist.Components.shared.registerComponents(using: config)
         
         // Start the server
         try await app.startup()
@@ -104,7 +104,7 @@ final class MistComponentTests: XCTestCase
         app.migrations.add(DummyModel1.Table(), DummyModel2.Table())
         try await app.autoMigrate()
         let config = Mist.Configuration(for: app, components: [MyComponent()])
-        await Mist.Components.shared.registerComponents(definedIn: config)
+        await Mist.Components.shared.registerComponents(using: config)
         
         // Start the server
         try await app.startup()

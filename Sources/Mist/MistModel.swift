@@ -4,19 +4,15 @@ import Fluent
 public protocol Model: Fluent.Model where IDValue == UUID {}
 
 public extension Mist.Model {
-    
-    // type-erased find function as closure that captures concrete model type Self
+
     static var find: (UUID, Database) async -> (any Mist.Model)? {
         return { id, db in
-            // Use Self to refer to the concrete model type
             return try? await Self.find(id, on: db)
         }
     }
     
-    // type-erased findAll() closure that captures concrete model type at compile time
     static var findAll: (Database) async -> [any Mist.Model]? {
         return { db in
-            // Use Self to refer to the concrete model type
             return try? await Self.query(on: db).all()
         }
     }
@@ -27,7 +23,7 @@ public extension Mist.Model {
 public struct ModelContainer: Encodable {
     
     // store encodable model data keyed by lowercase model type name
-    private var models: [String: Encodable] = [:]
+    private var models: [String: any Encodable] = [:]
     
     var isEmpty: Bool {
         return models.isEmpty

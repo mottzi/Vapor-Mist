@@ -21,7 +21,7 @@ final class MistIntegrationTests: XCTestCase
         
         // register multiple components with dublicate
         let config = Mist.Configuration(for: app, components: [DumbComp4133()])
-        await Mist.Components.shared.registerComponents(definedIn: config)
+        await Mist.Components.shared.registerComponents(using: config)
         
         // test this client message
         let subscriptionMessage = #"{ "subscribe": { "component": "DumbComp4133" } }"#
@@ -117,7 +117,7 @@ final class MistIntegrationTests: XCTestCase
         
         // configure mist with our test component
         let config = Mist.Configuration(for: app, components: [TestComponent()])
-        await Mist.Components.shared.registerComponents(definedIn: config)
+        await Mist.Components.shared.registerComponents(using: config)
         
         // subscription message
         let subscriptionMessage = #"{ "subscribe": { "component": "TestComponent" } }"#

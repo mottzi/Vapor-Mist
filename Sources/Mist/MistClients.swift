@@ -7,7 +7,7 @@ actor Clients {
     
     private init() { }
     
-    private var clients: [Client] = []
+    var clients: [Client] = []
     
 }
 
@@ -22,22 +22,14 @@ extension Clients {
     }
     
     func add(client id: UUID, socket: WebSocket) {
-        
-        clients.append(Client(id: id, socket: socket))
+        return clients.append(Client(id: id, socket: socket))
     }
     
     func remove(client id: UUID) {
-        
-        clients.removeAll { $0.id == id }
-    }
-    
-    func getClients() -> [Client] {
-
-        return clients
+        return clients.removeAll { $0.id == id }
     }
     
     func getSubscribers(of component: String) -> [Client] {
-        
         return clients.filter { $0.subscriptions.contains(component) }
     }
 }
@@ -47,11 +39,9 @@ extension Clients {
     @discardableResult func addSubscription(_ component: String, to client: UUID) async -> Bool {
 
         guard await Components.shared.hasComponent(name: component) else { return false }
-        
         guard let index = clients.firstIndex(where: { $0.id == client }) else { return false }
         
         let result = clients[index].subscriptions.insert(component)
-        
         return result.inserted
     }
 }
@@ -79,13 +69,3 @@ extension Clients {
         }
     }
 }
-
-#if DEBUG
-extension Clients {
-    
-    func resetForTesting() async {
-        clients = []
-    }
-    
-}
-#endif

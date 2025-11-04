@@ -25,14 +25,12 @@ public extension Mist.Component {
     func render(id: UUID, on db: Database, using renderer: ViewRenderer) async -> String? {
         
         guard let context = await makeContext(of: id, in: db) else { return nil }
-        
         guard let buffer = try? await renderer.render(template, context).data else { return nil }
         
         return String(buffer: buffer)
     }
     
     func shouldUpdate<M: Mist.Model>(for model: M) -> Bool {
-        
         return models.contains { $0 == M.self }
     }
     
@@ -45,13 +43,15 @@ public extension Mist.Component {
         var container = Mist.ModelContainer()
 
         for model in models {
+            
             guard let modelData = await model.find(componentID, db) else { continue }
             let modelName = String(describing: model).lowercased()
+            
             container.add(modelData, for: modelName)
         }
 
         guard container.isEmpty == false else { return nil }
-
+        
         return SingleComponentContext(component: container)
     }
     
@@ -59,20 +59,18 @@ public extension Mist.Component {
         
         var modelContainers: [Mist.ModelContainer] = []
 
-        guard let primaryModel = models.first else { return MultipleComponentContext.empty }
-
-        guard let primaryModels = await primaryModel.findAll(db) else { return MultipleComponentContext.empty }
+        guard let primaryModelType = models.first else { return .empty }
+        guard let primaryModels = await primaryModelType.findAll(db) else { return .empty }
 
         for primaryModel in primaryModels {
 
             guard let modelID = primaryModel.id else { continue }
-
             guard let modelContext = await makeContext(of: modelID, in: db) else { continue }
 
             modelContainers.append(modelContext.component)
         }
 
-        guard modelContainers.isEmpty == false else { return Mist.MultipleComponentContext.empty }
+        guard modelContainers.isEmpty == false else { return .empty }
 
         return Mist.MultipleComponentContext(components: modelContainers)
     }

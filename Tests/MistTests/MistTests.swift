@@ -6,7 +6,6 @@ import FluentSQLiteDriver
 @testable import LeafKit
 
 #if DEBUG
-
 protocol TestableComponent: Mist.Component {
     
     func templateStringLiteral(id: UUID) -> String
@@ -16,12 +15,41 @@ protocol TestableComponent: Mist.Component {
 extension TestableComponent {
     
     func render(id: UUID, on db: Database, using renderer: ViewRenderer) async -> String? {
-
+        
         guard let context = await makeContext(of: id, in: db) else { return nil }
         
         guard let html = try? renderLeafForTesting(templateStringLiteral(id: id), with: context) else { return nil }
         
         return html
+    }
+    
+}
+
+extension Mist.Components {
+    
+    func registerWOListenerForTesting(_ component: any Mist.Component) {
+        guard components.contains(where: { $0.name == component.name }) == false else { return }
+        components.append(component)
+    }
+    
+    func getStorgeForTesting() async -> [any Mist.Component] {
+        return components
+    }
+    
+    func resetForTesting() async {
+        components = []
+    }
+    
+}
+
+extension Clients {
+    
+    func getClients() -> [Client] {
+        return clients
+    }
+    
+    func resetForTesting() async {
+        clients = []
     }
     
 }
