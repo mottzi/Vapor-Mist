@@ -87,16 +87,16 @@ func registerAndRenderTemplate<E: Encodable>(
     using renderer: LeafRenderer
 ) async throws -> String {
 
-    // Create an in-memory string source (just like production MistStringSource)
-    let stringSource = TestMemoryLeafSource()
-    await stringSource.register(name: name, template: content)
+    // Create an in-memory template source (just like production TemplateSource)
+    let templateSource = TestTemplateSource()
+    await templateSource.register(name: name, template: content)
     
     // Get the renderer's existing sources
     let sources = renderer.sources
     
-    // Register our string source with a unique test key
-    let sourceKey = "test-strings-\(UUID().uuidString)"
-    try? sources.register(source: sourceKey, using: stringSource, searchable: true)
+    // Register our template source with a unique test key
+    let sourceKey = "test-templates-\(UUID().uuidString)"
+    try? sources.register(source: sourceKey, using: templateSource, searchable: true)
     
     // Render using the real renderer with the registered source
     let view = try await renderer.render(name, context).get()
@@ -108,9 +108,9 @@ func registerAndRenderTemplate<E: Encodable>(
 
 /// A `LeafSource` implementation that stores templates in memory for testing
 ///
-/// This is an actor (like production `MistStringSource`) to ensure thread safety
+/// This is an actor (like production `TemplateSource`) to ensure thread safety
 /// and accurately mirror production behavior in tests.
-actor TestMemoryLeafSource: LeafSource {
+actor TestTemplateSource: LeafSource {
     
     private var templates: [String: String] = [:]
     

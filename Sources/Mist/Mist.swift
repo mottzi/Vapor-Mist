@@ -23,25 +23,23 @@ public struct Configuration: Sendable {
 
 public func configure(using config: Mist.Configuration) async {
     
-    let logger = Logger(label: "Mist")
-    // Create the in-memory string source for components with inline templates
-    let stringSource = MistStringSource()
+    // Create the in-memory template source for components with inline templates
+    let templateSource = TemplateSource()
     
-    // Register all components and populate string source with inline templates
+    // Register all components and populate template source with inline templates
     for component in config.components {
         guard case .inline(let template) = component.template else { continue }
-        await stringSource.register(name: component.name, template: template)
-        logger.warning("1. Registered template for component \(component.name): \(template)")
+        await templateSource.register(name: component.name, template: template)
     }
     
     // Register components with Mist system
     await Mist.Components.shared.registerComponents(using: config)
     
-    // Configure Leaf to use both string and file sources
+    // Configure Leaf to use both inline and file sources
     let sources = config.app.leaf.sources
     
-    // Register the string source (this may fail if already registered, which is fine)
-    try? sources.register(source: "mist-strings", using: stringSource, searchable: true)
+    // Register the template source (this may fail if already registered, which is fine)
+    try? sources.register(source: "mist-templates", using: templateSource, searchable: true)
     
     config.app.leaf.sources = sources
     

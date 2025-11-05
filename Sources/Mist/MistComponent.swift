@@ -2,7 +2,7 @@ import Vapor
 import Fluent
 @testable import LeafKit
 
-public enum TemplateSource: Sendable {
+public enum TemplateType: Sendable {
     
     case file(path: String)
     case inline(template: String)
@@ -12,7 +12,7 @@ public enum TemplateSource: Sendable {
 public protocol Component: Sendable {
     
     var name: String { get }
-    var template: TemplateSource { get }
+    var template: TemplateType { get }
     var models: [any Mist.Model.Type] { get }
     
     func render(id: UUID, on db: Database, using renderer: ViewRenderer) async -> String?
@@ -23,7 +23,7 @@ public protocol Component: Sendable {
 public extension Mist.Component {
     
     var name: String { String(describing: Self.self) }
-    var template: TemplateSource { .file(path: name) }
+    var template: TemplateType { .file(path: name) }
     
 }
 
