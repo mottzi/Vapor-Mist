@@ -45,7 +45,7 @@ public func configure(using config: Mist.Configuration) async {
     
     config.app.leaf.sources = sources
 
-    logger.warning("sources: \(sources.all.description)")
+    logger.warning("sources: \(sources.searchOrder.joined(separator: " -> "))")
     
     // Register WebSocket route
     Mist.Socket.register(on: config.app)
