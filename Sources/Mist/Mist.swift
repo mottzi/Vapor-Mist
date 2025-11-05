@@ -21,62 +21,32 @@ public struct Configuration: Sendable {
     
 }
 
-public func Xconfigure(using config: Mist.Configuration) async {
-    let logger = config.app.logger
-
-    let templates = TemplateSource()
-    
+public func configure(using config: Mist.Configuration) async
+{
+    let inlineTemplates = TemplateSource()
     for component in config.components {
         guard case .inline(let template) = component.template else { continue }
-        await templates.register(name: component.name, template: template)
-        logger.warning("Registered component \(component.name) with inline template")
+        await inlineTemplates.register(name: component.name, template: template)
     }
     
+    let sources = LeafSources()
+    try? sources.register(source: "mist-templates", using: inlineTemplates)
+    try? sources.register(source: "default", using: config.app.leaf.defaultSource)
+    config.app.leaf.sources = sources
+        
     await Mist.Components.shared.registerComponents(using: config)
-    
-    // Register the template source (this may fail if already registered, which is fine)
-    try? config.app.leaf.sources.register(source: "mist-templates", using: templates)
-    logger.warning("sources: \(config.app.leaf.sources.searchOrder.joined(separator: " -> "))")
-    
-    // Register WebSocket route
     Mist.Socket.register(on: config.app)
 }
 
-public func configure(using config: Mist.Configuration) async {
-    let logger = config.app.logger
-    
-    let templates = TemplateSource()
-    
-    for component in config.components {
-        guard case .inline(let template) = component.template else { continue }
-        await templates.register(name: component.name, template: template)
-        logger.warning("Registered component \(component.name) with inline template")
-    }
-    
-    await Mist.Components.shared.registerComponents(using: config)
-    
-    // Create a new LeafSources and register in desired order
-    let sources = LeafSources()
-    
-    // Register mist-templates FIRST (will be searched first)
-    try? sources.register(source: "mist-templates", using: templates)
-    
-    // Register default file source SECOND (will be searched second)
-    try? sources.register(
-        source: "default",
-        using: NIOLeafFiles(
-            fileio: config.app.fileio,
+extension Application.Leaf {
+
+    var defaultSource: NIOLeafFiles {
+        NIOLeafFiles(
+            fileio: self.application.fileio,
             limits: .default,
-            sandboxDirectory: config.app.leaf.configuration.rootDirectory,
-            viewDirectory: config.app.leaf.configuration.rootDirectory
+            sandboxDirectory: self.configuration.rootDirectory,
+            viewDirectory: self.configuration.rootDirectory
         )
-    )
-    
-    // Set the new sources
-    config.app.leaf.sources = sources
-    
-    logger.warning("sources: \(config.app.leaf.sources.searchOrder.joined(separator: " -> "))")
-    
-    // Register WebSocket route
-    Mist.Socket.register(on: config.app)
+    }
+
 }
