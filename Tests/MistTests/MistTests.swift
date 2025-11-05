@@ -19,15 +19,15 @@ extension TestableComponent {
 
         guard let context = await makeContext(of: id, in: db) else { return nil }
 
+        // Register the template string with the renderer's sources (just like production)
         guard let leafRenderer = renderer as? LeafRenderer else { return nil }
-
-        // Use the component's name as the template identifier (matches production behavior)
+        
         let templateName = self.name
         let templateContent = templateStringLiteral(id: id)
-
-        guard let html = try? await renderWithInMemoryTemplate(
-            templateName: templateName,
-            templateContent: templateContent,
+        
+        guard let html = try? await registerAndRenderTemplate(
+            name: templateName,
+            content: templateContent,
             context: context,
             using: leafRenderer
         ) else { return nil }
@@ -66,61 +66,73 @@ extension Mist.Clients {
     
 }
 
-/// Renders an in-memory template using the real production `LeafRenderer`
+/// Registers a template string with the app's sources and renders it using the shared renderer
 ///
-/// This function uses Vapor's actual rendering pipeline, ensuring:
-/// - Full Leaf tag support (including custom tags)
-/// - Consistent behavior with file-based templates
-/// - Same event loop and configuration as production
-/// - No manual parsing or serialization
+/// This mirrors the production approach used in `Mist.configure()`, ensuring:
+/// - Same multi-source architecture (string source + file source fallback)
+/// - Same caching behavior (templates cached after first parse)
+/// - Same event loop and configuration
+/// - Tests accurately reflect production behavior
 ///
 /// - Parameters:
-///   - templateName: Unique name for this template (e.g., "inline-UUID")
-///   - templateContent: The Leaf template string
+///   - name: Template identifier (e.g., component name)
+///   - content: The Leaf template string
 ///   - context: The Encodable context to pass to the template
 ///   - renderer: The LeafRenderer from the Vapor app
 /// - Returns: The rendered HTML string
-func renderWithInMemoryTemplate<E: Encodable>(
-    templateName: String,
-    templateContent: String,
+func registerAndRenderTemplate<E: Encodable>(
+    name: String,
+    content: String,
     context: E,
     using renderer: LeafRenderer
 ) async throws -> String {
 
-    // Create an in-memory source with our template
-    let memorySource = MemoryLeafSource(templates: [templateName: templateContent])
-
-    // Create a new renderer with the same configuration but using our in-memory source
-    // Use LeafSources.singleSource() to wrap our custom source
-    let inlineRenderer = LeafRenderer(
-        configuration: renderer.configuration,
-        sources: .singleSource(memorySource),
-        eventLoop: renderer.eventLoop
-    )
-
-    // Use the REAL LeafRenderer.render() method - same as production!
-    let view = try await inlineRenderer.render(templateName, context).get()
-
+    // Create an in-memory string source (just like production MistStringSource)
+    let stringSource = TestMemoryLeafSource()
+    await stringSource.register(name: name, template: content)
+    
+    // Get the renderer's existing sources
+    let sources = renderer.sources
+    
+    // Register our string source with a unique test key
+    let sourceKey = "test-strings-\(UUID().uuidString)"
+    try? sources.register(source: sourceKey, using: stringSource, searchable: true)
+    
+    // Render using the real renderer with the registered source
+    let view = try await renderer.render(name, context).get()
+    
     // Convert the rendered view to a string
     return String(buffer: view.data)
 
 }
 
 /// A `LeafSource` implementation that stores templates in memory for testing
-struct MemoryLeafSource: LeafSource {
+///
+/// This is an actor (like production `MistStringSource`) to ensure thread safety
+/// and accurately mirror production behavior in tests.
+actor TestMemoryLeafSource: LeafSource {
     
-    private let templates: [String: String]
+    private var templates: [String: String] = [:]
     
-    init(templates: [String: String]) {
-        self.templates = templates
+    init() {}
+    
+    func register(name: String, template: String) {
+        self.templates[name] = template
     }
     
-    func file(template: String, escape: Bool, on eventLoop: EventLoop) -> EventLoopFuture<ByteBuffer> {
-        guard let content = templates[template] else {
-            return eventLoop.makeFailedFuture(LeafError(.noTemplateExists(template)))
+    nonisolated func file(template: String, escape: Bool, on eventLoop: EventLoop) -> EventLoopFuture<ByteBuffer> {
+        
+        let future = eventLoop.makeFutureWithTask {
+            if let content = await self.templates[template] {
+                var buffer = ByteBufferAllocator().buffer(capacity: content.utf8.count)
+                buffer.writeString(content)
+                return buffer
+            } else {
+                throw LeafError(.noTemplateExists(template))
+            }
         }
-        let buffer = ByteBuffer(string: content)
-        return eventLoop.makeSucceededFuture(buffer)
+        
+        return future
     }
     
 }

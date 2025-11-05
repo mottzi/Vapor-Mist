@@ -6,6 +6,7 @@ public protocol Component: Sendable {
     
     var name: String { get }
     var template: String { get }
+    var templateSource: String? { get }
     var models: [any Mist.Model.Type] { get }
     
     func render(id: UUID, on db: Database, using renderer: ViewRenderer) async -> String?
@@ -17,6 +18,7 @@ public extension Mist.Component {
     
     var name: String { String(describing: Self.self) }
     var template: String { String(describing: Self.self) }
+    var templateSource: String? { nil }
     
 }
 

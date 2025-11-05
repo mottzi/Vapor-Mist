@@ -141,11 +141,11 @@ final class MistComponentTests: XCTestCase
         // get the real LeafRenderer from the app
         guard let leafRenderer = app.view as? LeafRenderer else { return XCTFail("Failed to get LeafRenderer from app") }
 
-        // render template with the REAL production renderer
+        // render template using the production approach (register source, then render)
         // Use component name as template identifier (just like production would use "MyComponent.leaf")
-        let html = try await renderWithInMemoryTemplate(
-            templateName: "MyComponent",
-            templateContent: template,
+        let html = try await registerAndRenderTemplate(
+            name: "MyComponent",
+            content: template,
             context: context,
             using: leafRenderer
         )
