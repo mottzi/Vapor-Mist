@@ -29,7 +29,8 @@ public func configure(using config: Mist.Configuration) async {
     // Register all components and populate string source with inline templates
     for component in config.components {
         if let templateString = component.templateSource {
-            await stringSource.register(name: component.template, template: templateString)
+            await stringSource.register(name: component.name, template: templateString)
+            print("Registered template for component \(component.name): \(templateString)")
         }
     }
     
@@ -56,6 +57,8 @@ public func configure(using config: Mist.Configuration) async {
     
     // Register the configured sources back
     config.app.leaf.sources = sources
+
+    print("sources: \(sources.all.description)")
     
     // Register WebSocket route
     Mist.Socket.register(on: config.app)
