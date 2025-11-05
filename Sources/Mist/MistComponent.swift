@@ -2,11 +2,17 @@ import Vapor
 import Fluent
 @testable import LeafKit
 
+public enum TemplateSource {
+    
+    case file(path: String)
+    case inline(template: String)
+    
+}
+
 public protocol Component: Sendable {
     
     var name: String { get }
-    var template: String { get }
-    var templateSource: String? { get }
+    var template: TemplateSource { get }
     var models: [any Mist.Model.Type] { get }
     
     func render(id: UUID, on db: Database, using renderer: ViewRenderer) async -> String?
@@ -17,8 +23,7 @@ public protocol Component: Sendable {
 public extension Mist.Component {
     
     var name: String { String(describing: Self.self) }
-    var template: String { String(describing: Self.self) }
-    var templateSource: String? { nil }
+    var template: TemplateSource { .file(path: name) }
     
 }
 
@@ -27,7 +32,11 @@ public extension Mist.Component {
     func render(id: UUID, on db: Database, using renderer: ViewRenderer) async -> String?
     {
         guard let context = await makeContext(of: id, in: db) else { return nil }
-        guard let buffer = try? await renderer.render(template, context).data else { return nil }
+        let templateName = switch template {
+            case .file(let path): path
+            case .inline: name
+        }
+        guard let buffer = try? await renderer.render(templateName, context).data else { return nil }
         return String(buffer: buffer)
     }
     
