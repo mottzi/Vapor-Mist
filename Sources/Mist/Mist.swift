@@ -43,6 +43,8 @@ public func configure(using config: Mist.Configuration) async {
     // Register the string source (this may fail if already registered, which is fine)
     try? sources.register(source: "mist-strings", using: stringSource, searchable: true)
     
+    config.app.leaf.sources = sources
+    
     // Register WebSocket route
     Mist.Socket.register(on: config.app)
 }

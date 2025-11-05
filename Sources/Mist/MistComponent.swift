@@ -2,7 +2,7 @@ import Vapor
 import Fluent
 @testable import LeafKit
 
-public enum TemplateSource {
+public enum TemplateSource: Sendable {
     
     case file(path: String)
     case inline(template: String)
