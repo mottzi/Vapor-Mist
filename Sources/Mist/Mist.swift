@@ -31,7 +31,7 @@ public func configure(using config: Mist.Configuration) async {
     for component in config.components {
         guard case .inline(let template) = component.template else { continue }
         await templateSource.register(name: component.name, template: template)
-        logger.debug("Registered component \(component.name) with inline template")
+        logger.warning("Registered component \(component.name) with inline template")
     }
     
     // Register components with Mist system
@@ -45,7 +45,7 @@ public func configure(using config: Mist.Configuration) async {
     
     config.app.leaf.sources = sources
 
-    logger.debug("sources: \(sources.all.description)")
+    logger.warning("sources: \(sources.all.description)")
     
     // Register WebSocket route
     Mist.Socket.register(on: config.app)
