@@ -1,5 +1,5 @@
 {
-  "originHash" : "4237bcdaa5ad4b61e6299c15b3b09e06b062f444b4925b9eb11953a81cd8a7b3",
+  "originHash" : "0809d10c678c95bc1e8b20c60aa940e3de3e5d897d7e4c38a4cdabcde24dae0b",
   "pins" : [
     {
       "identity" : "async-http-client",
@@ -69,8 +69,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/vapor/leaf-kit.git",
       "state" : {
-        "revision" : "902c51288a6a1c3f19d9e33d1aebee066364c0e6",
-        "version" : "1.12.0"
+        "revision" : "0c325fc46d42455914abd0105e88fe4561fc31a8",
+        "version" : "1.14.0"
       }
     },
     {

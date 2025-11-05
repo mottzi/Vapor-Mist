@@ -1,6 +1,7 @@
 import XCTest
 import Vapor
 import Fluent
+import Leaf
 @testable import LeafKit
 import FluentSQLiteDriver
 @testable import Mist
@@ -24,6 +25,9 @@ final class MistComponentTests: XCTestCase
         // set up application and database
         let app = try await Application.make(.testing)
         app.databases.use(.sqlite(.memory), as: .sqlite)
+        
+        // Configure Leaf as the view renderer
+        app.views.use(.leaf)
         
         // add migrations
         app.migrations.add(DummyModel1.Table(), DummyModel2.Table())
@@ -101,6 +105,10 @@ final class MistComponentTests: XCTestCase
         // set up application and database
         let app = try await Application.make(.testing)
         app.databases.use(.sqlite(.memory), as: .sqlite)
+        
+        // Configure Leaf as the view renderer (REQUIRED for LeafRenderer)
+        app.views.use(.leaf)
+        
         app.migrations.add(DummyModel1.Table(), DummyModel2.Table())
         try await app.autoMigrate()
         let config = Mist.Configuration(for: app, components: [MyComponent()])
@@ -129,9 +137,18 @@ final class MistComponentTests: XCTestCase
         
         // get component data context
         guard let context = await MyComponent().makeContext(of: modelID, in: app.db) else { return XCTFail("Failed to create context") }
-        
-        // render template with context
-        let html = try renderLeafForTesting(template, with: context)
+
+        // get the real LeafRenderer from the app
+        guard let leafRenderer = app.view as? LeafRenderer else { return XCTFail("Failed to get LeafRenderer from app") }
+
+        // render template with the REAL production renderer
+        // Use component name as template identifier (just like production would use "MyComponent.leaf")
+        let html = try await renderWithInMemoryTemplate(
+            templateName: "MyComponent",
+            templateContent: template,
+            context: context,
+            using: leafRenderer
+        )
         
         // validate rendering
         XCTAssertEqual(html,

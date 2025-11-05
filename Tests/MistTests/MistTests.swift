@@ -2,27 +2,39 @@ import XCTest
 import Vapor
 import Fluent
 import FluentSQLiteDriver
+import Leaf
 @testable import Mist
 @testable import LeafKit
 
 #if DEBUG
 protocol TestableComponent: Mist.Component {
-    
+
     func templateStringLiteral(id: UUID) -> String
-    
+
 }
 
 extension TestableComponent {
-    
+
     func render(id: UUID, on db: Database, using renderer: ViewRenderer) async -> String? {
-        
+
         guard let context = await makeContext(of: id, in: db) else { return nil }
-        
-        guard let html = try? renderLeafForTesting(templateStringLiteral(id: id), with: context) else { return nil }
-        
+
+        guard let leafRenderer = renderer as? LeafRenderer else { return nil }
+
+        // Use the component's name as the template identifier (matches production behavior)
+        let templateName = self.name
+        let templateContent = templateStringLiteral(id: id)
+
+        guard let html = try? await renderWithInMemoryTemplate(
+            templateName: templateName,
+            templateContent: templateContent,
+            context: context,
+            using: leafRenderer
+        ) else { return nil }
+
         return html
     }
-    
+
 }
 
 extension Mist.Components {
@@ -54,57 +66,62 @@ extension Mist.Clients {
     
 }
 
-// enables leaf rendering with in-memory template string literal
-func renderLeafForTesting<E: Encodable>(_ templateString: String, with context: E) throws -> String {
-    
-    // 1. Convert Encodable context to LeafData
-    let contextData = try JSONEncoder().encode(context)
-    let dict = try JSONSerialization.jsonObject(with: contextData) as? [String: Any] ?? [:]
-    let leafContext = convertDictionaryToLeafData(dict)
-    
-    // 2. Set up LeafKit components for direct rendering
-    var lexer = LeafLexer(name: "inline-template", template: templateString)
-    let tokens = try lexer.lex()
-    
-    var parser = LeafParser(name: "inline-template", tokens: tokens)
-    let ast = try parser.parse()
-    
-    var serializer = LeafSerializer(ast: ast, ignoreUnfoundImports: false)
-    
-    // 3. Perform the serialization
-    let buffer = try serializer.serialize(context: leafContext)
-    
-    // 4. Convert ByteBuffer to String
-    return buffer.getString(at: buffer.readerIndex, length: buffer.readableBytes) ?? ""
+/// Renders an in-memory template using the real production `LeafRenderer`
+///
+/// This function uses Vapor's actual rendering pipeline, ensuring:
+/// - Full Leaf tag support (including custom tags)
+/// - Consistent behavior with file-based templates
+/// - Same event loop and configuration as production
+/// - No manual parsing or serialization
+///
+/// - Parameters:
+///   - templateName: Unique name for this template (e.g., "inline-UUID")
+///   - templateContent: The Leaf template string
+///   - context: The Encodable context to pass to the template
+///   - renderer: The LeafRenderer from the Vapor app
+/// - Returns: The rendered HTML string
+func renderWithInMemoryTemplate<E: Encodable>(
+    templateName: String,
+    templateContent: String,
+    context: E,
+    using renderer: LeafRenderer
+) async throws -> String {
+
+    // Create an in-memory source with our template
+    let memorySource = MemoryLeafSource(templates: [templateName: templateContent])
+
+    // Create a new renderer with the same configuration but using our in-memory source
+    // Use LeafSources.singleSource() to wrap our custom source
+    let inlineRenderer = LeafRenderer(
+        configuration: renderer.configuration,
+        sources: .singleSource(memorySource),
+        eventLoop: renderer.eventLoop
+    )
+
+    // Use the REAL LeafRenderer.render() method - same as production!
+    let view = try await inlineRenderer.render(templateName, context).get()
+
+    // Convert the rendered view to a string
+    return String(buffer: view.data)
+
 }
 
-// recursively converts a dictionary with Any values to a dictionary with LeafData values
-func convertDictionaryToLeafData(_ dictionary: [String: Any]) -> [String: LeafData] {
+/// A `LeafSource` implementation that stores templates in memory for testing
+struct MemoryLeafSource: LeafSource {
     
-    var result = [String: LeafData]()
+    private let templates: [String: String]
     
-    for (key, value) in dictionary {
-        result[key] = convertToLeafData(value)
+    init(templates: [String: String]) {
+        self.templates = templates
     }
     
-    return result
-}
-
-// Converts a single value to LeafData
-func convertToLeafData(_ value: Any) -> LeafData {
-    
-    switch value {
-        case let string as String: return .string(string)
-        case let int as Int: return .int(int)
-        case let double as Double: return .double(double)
-        case let bool as Bool: return .bool(bool)
-        case let array as [Any]: return .array(array.map { convertToLeafData($0) })
-        case let dict as [String: Any]: return .dictionary(convertDictionaryToLeafData(dict))
-        case let date as Date: return .double(date.timeIntervalSince1970)
-        case let uuid as UUID: return .string(uuid.uuidString)
-        case let data as Data: return .data(data)
-        case is NSNull: return .nil(.string)
-        default: return .nil(.string)
+    func file(template: String, escape: Bool, on eventLoop: EventLoop) -> EventLoopFuture<ByteBuffer> {
+        guard let content = templates[template] else {
+            return eventLoop.makeFailedFuture(LeafError(.noTemplateExists(template)))
+        }
+        let buffer = ByteBuffer(string: content)
+        return eventLoop.makeSucceededFuture(buffer)
     }
+    
 }
 #endif

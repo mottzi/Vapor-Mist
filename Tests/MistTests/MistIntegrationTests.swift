@@ -1,6 +1,7 @@
 import XCTest
 import Vapor
 import Fluent
+import Leaf
 import FluentSQLiteDriver
 @testable import Mist
 
@@ -18,6 +19,9 @@ final class MistIntegrationTests: XCTestCase
     {
         let app = try await Application.make(.testing)
         app.databases.use(.sqlite(.memory), as: .sqlite)
+        
+        // Configure Leaf as the view renderer
+        app.views.use(.leaf)
         
         // register multiple components with dublicate
         let config = Mist.Configuration(for: app, components: [DumbComp4133()])
@@ -110,6 +114,9 @@ final class MistIntegrationTests: XCTestCase
         // set up application and database
         let app = try await Application.make(.testing)
         app.databases.use(.sqlite(.memory), as: .sqlite)
+        
+        // Configure Leaf as the view renderer
+        app.views.use(.leaf)
         
         // add migrations
         app.migrations.add(DummyModel1.Table(), DummyModel2.Table())
