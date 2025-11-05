@@ -20,7 +20,7 @@ final class MistClientsTests: XCTestCase
         let clientID = await addTestClient()
         
         // load internal storage
-        let clients = await Mist.Clients.shared.getClients()
+        let clients = await Mist.Clients.shared.clients
         
         // test internal storage after adding client
         XCTAssertEqual(clients.count, 1, "Only one client should exist")
@@ -38,7 +38,7 @@ final class MistClientsTests: XCTestCase
         await Mist.Clients.shared.removeClient(id: clientID)
         
         // load internal storage
-        let clients = await Mist.Clients.shared.getClients()
+        let clients = await Mist.Clients.shared.clients
         
         // test internal storage
         XCTAssertEqual(clients.count, 0, "No clients should exist")
@@ -84,7 +84,7 @@ final class MistClientsTests: XCTestCase
         XCTAssertEqual(inserted, false)
 
         // load internal storage
-        let clients = await Mist.Clients.shared.getClients()
+        let clients = await Mist.Clients.shared.clients
         
         // test internal storage after adding subscriptions to clients
         XCTAssertEqual(clients.count, 3, "Only 4 clients should exist")
@@ -208,7 +208,7 @@ final class MistClientsTests: XCTestCase
         XCTAssertEqual(subscribers2.count, 0, "DummyRow2 should have no subscribers")
         
         // verify internal state is clean (no memory leaks)
-        let reverseIndexIsEmpty = await Mist.Clients.shared.getReverseIndexForTesting().isEmpty
+        let reverseIndexIsEmpty = await Mist.Clients.shared.componentToClients.isEmpty
         XCTAssertTrue(reverseIndexIsEmpty, "Reverse index should be completely empty after all clients removed")
     }
     
@@ -227,7 +227,7 @@ final class MistClientsTests: XCTestCase
         XCTAssertEqual(subscribers.count, 1)
         
         // verify component key exists in reverse index
-        var reverseIndex = await Mist.Clients.shared.getReverseIndexForTesting()
+        var reverseIndex = await Mist.Clients.shared.componentToClients
         XCTAssertTrue(reverseIndex.keys.contains("DummyRow1"), "Component should exist in reverse index")
         
         // remove the only subscriber
@@ -238,7 +238,7 @@ final class MistClientsTests: XCTestCase
         XCTAssertEqual(subscribers.count, 0)
         
         // verify component key is removed from reverse index (no memory leak)
-        reverseIndex = await Mist.Clients.shared.getReverseIndexForTesting()
+        reverseIndex = await Mist.Clients.shared.componentToClients
         XCTAssertFalse(reverseIndex.keys.contains("DummyRow1"), "Component key should be removed when last subscriber is removed")
     }
 }

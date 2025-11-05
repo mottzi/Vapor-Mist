@@ -45,15 +45,7 @@ extension Mist.Components {
     
 }
 
-extension Clients {
-    
-    func getClients() -> [Client] {
-        return clients
-    }
-    
-    func getReverseIndexForTesting() -> [String: Set<UUID>] {
-        return componentToClients
-    }
+extension Mist.Clients {
     
     func resetForTesting() async {
         clients = []
