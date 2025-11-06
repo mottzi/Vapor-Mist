@@ -36,8 +36,6 @@ public func configure(using config: Mist.Configuration) async
         
     await Mist.Components.shared.registerComponents(using: config)
     Mist.Socket.register(on: config.app)
-    
-    await config.app.mist.clients.broadcast(.init(component: "", id: UUID(), html: ""))
 }
 
 extension Application.Leaf {

@@ -9,8 +9,7 @@ final class MistIntegrationTests: XCTestCase
 {
     override func setUp() async throws
     {
-        // reset singletons before each test
-        await Mist.Clients.shared.resetForTesting()
+        // reset singleton before each test
         await Mist.Components.shared.resetForTesting()
     }
     
@@ -34,14 +33,16 @@ final class MistIntegrationTests: XCTestCase
         app.webSocket("socket")
         { request, ws async in
             
+            let app = request.application
+            
             // create client
             let clientID = UUID()
             
             // use API to add client to internal storage
-            await Mist.Clients.shared.addClient(id: clientID, socket: ws)
+            await app.mist.clients.addClient(id: clientID, socket: ws)
             
             // get internal storage
-            let clients = await Mist.Clients.shared.clients
+            let clients = await app.mist.clients.clients
             
             // test internal storage after adding client
             XCTAssertEqual(clients.count, 1, "Only one client should exist")
@@ -68,11 +69,11 @@ final class MistIntegrationTests: XCTestCase
                         XCTAssertEqual(component, "DumbComp4133", "Mist message component should match JSON component string")
                         
                         // use API to add client sent component name to client's subscription set
-                        let added = await Mist.Clients.shared.addSubscription(component, to: clientID)
+                        let added = await app.mist.clients.addSubscription(component, to: clientID)
                         XCTAssertEqual(added, true, "Component not found (or client)")
 
                         // get internal storage
-                        let clients = await Mist.Clients.shared.clients
+                        let clients = await app.mist.clients.clients
                         
                         // test internal storage after adding subscription
                         XCTAssertEqual(clients.count, 1, "Only one client should exist")
@@ -153,9 +154,11 @@ final class MistIntegrationTests: XCTestCase
         app.webSocket("socket")
         { request, ws async in
             
+            let app = request.application
+            
             // add client to registry
             let clientID = UUID()
-            await Mist.Clients.shared.addClient(id: clientID, socket: ws)
+            await app.mist.clients.addClient(id: clientID, socket: ws)
             
             // handle client messages
             ws.onText()
@@ -172,7 +175,7 @@ final class MistIntegrationTests: XCTestCase
                 guard case .subscribe(let component) = message else { return await test.fail("Unsupported message type") }
     
                 // add subscription
-                let added = await Mist.Clients.shared.addSubscription(component, to: clientID)
+                let added = await app.mist.clients.addSubscription(component, to: clientID)
                 guard added else { return await test.fail("Failed to add subscription") }
                 
                 // create and update models to trigger listener

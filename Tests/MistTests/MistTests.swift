@@ -57,14 +57,6 @@ extension Mist.Components {
     
 }
 
-extension Mist.Clients {
-    
-    func resetForTesting() async {
-        clients = []
-        componentToClients = [:]
-    }
-    
-}
 
 /// Registers a template string with the app's sources and renders it using the shared renderer
 ///

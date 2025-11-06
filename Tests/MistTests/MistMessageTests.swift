@@ -8,8 +8,7 @@ final class MistMessageTests: XCTestCase
 {
     override func setUp() async throws
     {
-        // reset singletons before each test
-        await Mist.Clients.shared.resetForTesting()
+        // reset singleton before each test
         await Mist.Components.shared.resetForTesting()
     }
     
