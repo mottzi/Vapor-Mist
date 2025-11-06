@@ -5,8 +5,11 @@ public actor Clients {
     
     var clients: [Client] = []
     var componentToClients: [String: Set<UUID>] = [:]
+    let components: Mist.Components
     
-    init() {}
+    init(components: Mist.Components) {
+        self.components = components
+    }
     
 }
 
@@ -51,7 +54,7 @@ extension Clients {
     @discardableResult
     func addSubscription(_ component: String, to client: UUID) async -> Bool {
         
-        guard await Components.shared.hasComponent(usingName: component) else { return false }
+        guard await components.hasComponent(usingName: component) else { return false }
         guard let index = clients.firstIndex(where: { $0.id == client }) else { return false }
         
         let result = clients[index].subscriptions.insert(component)

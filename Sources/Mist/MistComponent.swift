@@ -1,13 +1,5 @@
 import Vapor
 import Fluent
-@testable import LeafKit
-
-public enum TemplateType: Sendable {
-    
-    case file(path: String)
-    case inline(template: String)
-    
-}
 
 public protocol Component: Sendable {
     
@@ -85,5 +77,12 @@ public extension Mist.Component {
 
         return Mist.MultipleComponentContext(components: modelContainers)
     }
+    
+}
+
+public enum TemplateType: Sendable {
+    
+    case file(path: String)
+    case inline(template: String)
     
 }

@@ -10,6 +10,7 @@ extension Application {
         public let application: Application
         
         public var clients: Mist.Clients { _clients }
+        public var components: Mist.Components { _components }
         
     }
     
@@ -32,7 +33,7 @@ extension Application.MistDependency {
         try? sources.register(source: "default", using: application.leaf.defaultSource)
         application.leaf.sources = sources
         
-        await Components.shared.registerComponents(components, with: application)
+        await _components.registerComponents(components, with: application)
         Socket.register(on: application)
     }
     
@@ -51,6 +52,7 @@ extension Application.MistDependency {
     final class Storage: @unchecked Sendable {
         init() {}
         var clients: Mist.Clients?
+        var components: Mist.Components?
     }
     
     var storage: Storage {
@@ -62,8 +64,15 @@ extension Application.MistDependency {
     
     var _clients: Mist.Clients {
         if let existing = storage.clients { return existing }
-        let new = Mist.Clients()
+        let new = Mist.Clients(components: _components)
         storage.clients = new
+        return new
+    }
+    
+    var _components: Mist.Components {
+        if let existing = storage.components { return existing }
+        let new = Mist.Components()
+        storage.components = new
         return new
     }
     

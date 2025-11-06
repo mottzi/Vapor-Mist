@@ -20,7 +20,7 @@ struct Listener<M: Model>: AsyncModelMiddleware {
         
         guard let modelID = model.id else { return }
         
-        for component in await Components.shared.getComponents(using: M.self) {
+        for component in await app.mist.components.getComponents(using: M.self) {
             
             guard component.shouldUpdate(for: model) else { continue }
             guard let html = await component.render(

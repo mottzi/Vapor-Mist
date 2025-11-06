@@ -1,15 +1,13 @@
 import Vapor
 import Fluent
 
-actor Components {
-    
-    static let shared = Components()
-    
-    private init() {}
-    
+public actor Components {
+        
     var components: [any Mist.Component] = []
     var modelToComponents: [ObjectIdentifier: [any Mist.Component]] = [:]
     
+    init() {}
+
 }
 
 extension Mist.Components {
