@@ -14,7 +14,7 @@ actor Components {
 
 extension Mist.Components {
     
-    func registerComponents(_ components: [any Mist.Component], with app: Application) async
+    func registerComponents(_ components: [any Mist.Component], with app: Application)
     {
         for component in components
         {

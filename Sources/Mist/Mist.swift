@@ -9,42 +9,48 @@ extension Application {
         
         public let application: Application
         
-        public func use(components: [any Component], with db: DatabaseID? = nil) async
-        {
-            let inlineTemplates = TemplateSource()
-            for component in components {
-                guard case .inline(let template) = component.template else { continue }
-                await inlineTemplates.register(name: component.name, template: template)
-            }
-            
-            let sources = LeafSources()
-            try? sources.register(source: "mist-templates", using: inlineTemplates)
-            try? sources.register(source: "default", using: application.leaf.defaultSource)
-            application.leaf.sources = sources
-            
-            await Components.shared.registerComponents(components, with: application)
-            Socket.register(on: application)
-        }
+        public var clients: Mist.Clients { _clients }
         
     }
     
+    public var mist: MistDependency { .init(application: self) }
+    
 }
 
-extension Application {
+extension Application.MistDependency {
     
-    public var mist: MistDependency {
-        .init(application: self)
+    public func use(_ components: [any Component]) async
+    {
+        let inlineTemplates = TemplateSource()
+        for component in components {
+            guard case .inline(let template) = component.template else { continue }
+            await inlineTemplates.register(name: component.name, template: template)
+        }
+        
+        let sources = LeafSources()
+        try? sources.register(source: "mist-templates", using: inlineTemplates)
+        try? sources.register(source: "default", using: application.leaf.defaultSource)
+        application.leaf.sources = sources
+        
+        await Components.shared.registerComponents(components, with: application)
+        Socket.register(on: application)
+    }
+    
+    public func use(_ components: any Component...) async {
+        await use(components)
     }
     
 }
 
 extension Application.MistDependency {
     
-    public var clients: Mist.Clients {
-        if let existing = storage.clients { return existing }
-        let new = Mist.Clients()
-        storage.clients = new
-        return new
+    struct Key: StorageKey {
+        typealias Value = Storage
+    }
+    
+    final class Storage: @unchecked Sendable {
+        init() {}
+        var clients: Mist.Clients?
     }
     
     var storage: Storage {
@@ -54,13 +60,11 @@ extension Application.MistDependency {
         return new
     }
     
-    final class Storage: @unchecked Sendable {
-        init() {}
-        var clients: Mist.Clients?
-    }
-    
-    struct Key: StorageKey {
-        typealias Value = Storage
+    var _clients: Mist.Clients {
+        if let existing = storage.clients { return existing }
+        let new = Mist.Clients()
+        storage.clients = new
+        return new
     }
     
 }
