@@ -36,6 +36,8 @@ public func configure(using config: Mist.Configuration) async
         
     await Mist.Components.shared.registerComponents(using: config)
     Mist.Socket.register(on: config.app)
+    
+    await config.app.mist.clients.broadcast(.init(component: "", id: UUID(), html: ""))
 }
 
 extension Application.Leaf {
@@ -49,4 +51,45 @@ extension Application.Leaf {
         )
     }
 
+}
+
+extension Application {
+    
+    public var mist: MistDependency {
+        .init(application: self)
+    }
+    
+    public struct MistDependency {
+        
+        public let application: Application
+        
+        public var clients: Mist.Clients {
+            if let existing = storage.clients { return existing }
+            let new = Mist.Clients()
+            storage.clients = new
+            return new
+        }
+        
+        var storage: Storage {
+            if let existing = self.application.storage[Key.self] { return existing }
+            let new = Storage()
+            self.application.storage[Key.self] = new
+            return new
+        }
+        
+        struct Key: StorageKey {
+            
+            typealias Value = Storage
+            
+        }
+        
+        final class Storage: @unchecked Sendable {
+            
+            var clients: Mist.Clients?
+            
+            init() {}
+            
+        }
+        
+    }
 }

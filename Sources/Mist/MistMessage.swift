@@ -10,7 +10,7 @@ enum Message: Codable {
     
 }
 
-extension Mist.Clients {
+extension Clients {
     
     func send(_ message: Message.Text, to clientID: UUID) async {
         

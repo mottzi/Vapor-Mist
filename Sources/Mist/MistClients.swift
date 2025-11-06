@@ -1,20 +1,18 @@
 import Vapor
 import Fluent
 
-actor Clients {
-    
-    static let shared = Clients()
-    
-    private init() { }
+public actor Clients {
     
     var clients: [Client] = []
     var componentToClients: [String: Set<UUID>] = [:]
+    
+    init() {}
     
 }
 
 extension Clients {
     
-    struct Client {
+    struct Client: Sendable {
         
         let id: UUID
         let socket: WebSocket
@@ -47,12 +45,12 @@ extension Clients {
     }
     
 }
-    
+
 extension Clients {
     
     @discardableResult
     func addSubscription(_ component: String, to client: UUID) async -> Bool {
-
+        
         guard await Components.shared.hasComponent(usingName: component) else { return false }
         guard let index = clients.firstIndex(where: { $0.id == client }) else { return false }
         

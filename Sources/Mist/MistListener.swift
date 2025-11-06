@@ -2,7 +2,7 @@ import Vapor
 import Fluent
 
 extension Mist.Model {
-
+    
     static func registerListener(using config: Configuration) {
         let listener = Listener<Self>(config: config)
         config.app.databases.middleware.use(listener, on: config.db)
@@ -29,7 +29,7 @@ struct Listener<M: Model>: AsyncModelMiddleware {
                 using: config.app.leaf.renderer)
             else { continue }
             
-            await Clients.shared.broadcast(
+            await config.app.mist.clients.broadcast(
                 Message.Update(
                     component: component.name,
                     id: modelID,
