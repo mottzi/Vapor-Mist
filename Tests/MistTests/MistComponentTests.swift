@@ -12,13 +12,7 @@ struct MyComponent: Mist.Component
 }
 
 final class MistComponentTests: XCTestCase
-{
-    override func setUp() async throws
-    {
-        // reset singleton before each test
-        await Mist.Components.shared.resetForTesting()
-    }
-    
+{    
     func testMakeContextSingle() async throws
     {
         // set up application and database
@@ -33,7 +27,7 @@ final class MistComponentTests: XCTestCase
         try await app.autoMigrate()
         
         // configure mist with our test component
-        await Mist.Components.shared.registerComponents([MyComponent()], with: app)
+        await app.mist.components.registerComponents([MyComponent()], with: app)
         
         // Start the server
         try await app.startup()
@@ -109,7 +103,7 @@ final class MistComponentTests: XCTestCase
         
         app.migrations.add(DummyModel1.Table(), DummyModel2.Table())
         try await app.autoMigrate()
-        await Mist.Components.shared.registerComponents([MyComponent()], with: app)
+        await app.mist.components.registerComponents([MyComponent()], with: app)
         
         // Start the server
         try await app.startup()

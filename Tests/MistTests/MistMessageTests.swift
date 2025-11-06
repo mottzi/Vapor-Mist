@@ -5,13 +5,7 @@ import FluentSQLiteDriver
 @testable import Mist
 
 final class MistMessageTests: XCTestCase
-{
-    override func setUp() async throws
-    {
-        // reset singleton before each test
-        await Mist.Components.shared.resetForTesting()
-    }
-    
+{    
     // tests decoding json subscription message to Mist.Message type
     func testSubscriptionDecoding() async
     {

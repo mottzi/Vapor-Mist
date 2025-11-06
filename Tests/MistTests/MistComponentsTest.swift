@@ -5,13 +5,7 @@ import FluentSQLiteDriver
 @testable import Mist
 
 final class MistComponentsTest: XCTestCase
-{
-    override func setUp() async throws
-    {
-        // reset singleton before each test
-        await Mist.Components.shared.resetForTesting()
-    }
-    
+{    
     // tests integrity of internal component registry and deduplication
     func testInternalStorage() async throws
     {
@@ -20,10 +14,10 @@ final class MistComponentsTest: XCTestCase
         app.databases.use(.sqlite(.memory), as: .sqlite)
         
         // register multiple components with dublicate
-        await Mist.Components.shared.registerComponents([DummyRow1(), DummyRow2(), DummyRow1()], with: app)
+        await app.mist.components.registerComponents([DummyRow1(), DummyRow2(), DummyRow1()], with: app)
         
         // get internal component registry
-        let componentsArray = await Mist.Components.shared.components
+        let componentsArray = await app.mist.components.components
         
         // verify internal component registry integrity
         XCTAssertEqual(componentsArray.count, 2, "Registry should contain exactly 2 components")
@@ -50,12 +44,12 @@ final class MistComponentsTest: XCTestCase
         app.databases.use(.sqlite(.memory), as: .sqlite)
         
         // register multiple components with dublicate
-        await Mist.Components.shared.registerComponents([DummyRow1(), DummyRow2(), DummyRow1()], with: app)
+        await app.mist.components.registerComponents([DummyRow1(), DummyRow2(), DummyRow1()], with: app)
         
         // use model-based component lookup API
-        let model1Components = await Mist.Components.shared.getComponents(using: DummyModel1.self)
-        let model2Components = await Mist.Components.shared.getComponents(using: DummyModel2.self)
-        let model3Components = await Mist.Components.shared.getComponents(using: DummyModel3.self)
+        let model1Components = await app.mist.components.getComponents(using: DummyModel1.self)
+        let model2Components = await app.mist.components.getComponents(using: DummyModel2.self)
+        let model3Components = await app.mist.components.getComponents(using: DummyModel3.self)
 
         // test results of API for first model
         XCTAssertEqual(model1Components.count, 2, "Expected exactly 2 components for DummyModel1")
@@ -80,21 +74,21 @@ final class MistComponentsTest: XCTestCase
         app.databases.use(.sqlite(.memory), as: .sqlite)
         
         // register components
-        await Mist.Components.shared.registerComponents([DummyRow1(), DummyRow2()], with: app)
+        await app.mist.components.registerComponents([DummyRow1(), DummyRow2()], with: app)
         
         // test reverse index lookup for DummyModel1 (used by both components)
-        let model1Components = await Mist.Components.shared.getComponents(using: DummyModel1.self)
+        let model1Components = await app.mist.components.getComponents(using: DummyModel1.self)
         XCTAssertEqual(model1Components.count, 2, "DummyModel1 should map to 2 components")
         XCTAssertTrue(model1Components.contains(where: { $0.name == "DummyRow1" }))
         XCTAssertTrue(model1Components.contains(where: { $0.name == "DummyRow2" }))
         
         // test reverse index lookup for DummyModel2 (used by one component)
-        let model2Components = await Mist.Components.shared.getComponents(using: DummyModel2.self)
+        let model2Components = await app.mist.components.getComponents(using: DummyModel2.self)
         XCTAssertEqual(model2Components.count, 1, "DummyModel2 should map to 1 component")
         XCTAssertEqual(model2Components[0].name, "DummyRow1")
         
         // test non-existent model
-        let model3Components = await Mist.Components.shared.getComponents(using: DummyModel3.self)
+        let model3Components = await app.mist.components.getComponents(using: DummyModel3.self)
         XCTAssertEqual(model3Components.count, 0, "Non-registered model should have no components")
         
         try await app.asyncShutdown()
@@ -108,10 +102,10 @@ final class MistComponentsTest: XCTestCase
         app.databases.use(.sqlite(.memory), as: .sqlite)
         
         // register components
-        await Mist.Components.shared.registerComponents([DummyRow1(), DummyRow2()], with: app)
+        await app.mist.components.registerComponents([DummyRow1(), DummyRow2()], with: app)
         
         // get reverse index directly
-        let reverseIndex = await Mist.Components.shared.modelToComponents
+        let reverseIndex = await app.mist.components.modelToComponents
         
         // verify reverse index structure
         XCTAssertEqual(reverseIndex.count, 2, "Reverse index should contain 2 model keys")
@@ -141,14 +135,14 @@ final class MistComponentsTest: XCTestCase
         app.databases.use(.sqlite(.memory), as: .sqlite)
         
         // register components with duplicate
-        await Mist.Components.shared.registerComponents([DummyRow1(), DummyRow2(), DummyRow1()], with: app)
+        await app.mist.components.registerComponents([DummyRow1(), DummyRow2(), DummyRow1()], with: app)
         
         // verify component array has no duplicates
-        let componentsArray = await Mist.Components.shared.components
+        let componentsArray = await app.mist.components.components
         XCTAssertEqual(componentsArray.count, 2, "Should have only 2 components despite duplicate registration")
         
         // verify reverse index matches deduplicated component array
-        let model1Components = await Mist.Components.shared.getComponents(using: DummyModel1.self)
+        let model1Components = await app.mist.components.getComponents(using: DummyModel1.self)
         XCTAssertEqual(model1Components.count, 2, "DummyModel1 should still map to 2 components")
         
         // verify no duplicate entries in reverse index for same component
@@ -167,11 +161,11 @@ final class MistComponentsTest: XCTestCase
         app.databases.use(.sqlite(.memory), as: .sqlite)
         
         // register only DummyRow1 which uses 2 models
-        await Mist.Components.shared.registerComponents([DummyRow1()], with: app)
+        await app.mist.components.registerComponents([DummyRow1()], with: app)
         
         // verify both models in reverse index point to same component
-        let model1Components = await Mist.Components.shared.getComponents(using: DummyModel1.self)
-        let model2Components = await Mist.Components.shared.getComponents(using: DummyModel2.self)
+        let model1Components = await app.mist.components.getComponents(using: DummyModel1.self)
+        let model2Components = await app.mist.components.getComponents(using: DummyModel2.self)
         
         XCTAssertEqual(model1Components.count, 1, "DummyModel1 should map to 1 component")
         XCTAssertEqual(model2Components.count, 1, "DummyModel2 should map to 1 component")
@@ -180,7 +174,7 @@ final class MistComponentsTest: XCTestCase
         XCTAssertEqual(model2Components[0].name, "DummyRow1")
         
         // verify reverse index has entries for both models
-        let reverseIndex = await Mist.Components.shared.modelToComponents
+        let reverseIndex = await app.mist.components.modelToComponents
         XCTAssertEqual(reverseIndex.count, 2, "Reverse index should have 2 entries for component with 2 models")
         
         try await app.asyncShutdown()

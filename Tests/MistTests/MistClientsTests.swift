@@ -5,13 +5,7 @@ import FluentSQLiteDriver
 @testable import Mist
 
 final class MistClientsTests: XCTestCase
-{
-    override func setUp() async throws
-    {
-        // reset singleton before each test
-        await Mist.Components.shared.resetForTesting()
-    }
-    
+{    
     // tests correct adding of new client
     func testAddClient() async throws
     {
@@ -61,8 +55,8 @@ final class MistClientsTests: XCTestCase
         let clientID2 = await addTestClient(app: app)
         
         // use testing API to register component
-        await Mist.Components.shared.registerWOListenerForTesting(DummyRow1())
-        await Mist.Components.shared.registerWOListenerForTesting(DummyRow2())
+        await app.mist.components.registerWOListenerForTesting(DummyRow1())
+        await app.mist.components.registerWOListenerForTesting(DummyRow2())
         
         // use API to add component name to client's subscription set
         var inserted: Bool
@@ -118,8 +112,8 @@ final class MistClientsTests: XCTestCase
         let clientID2 = await addTestClient(app: app)
 
         // use testing API to register components
-        await Mist.Components.shared.registerWOListenerForTesting(DummyRow1())
-        await Mist.Components.shared.registerWOListenerForTesting(DummyRow2())
+        await app.mist.components.registerWOListenerForTesting(DummyRow1())
+        await app.mist.components.registerWOListenerForTesting(DummyRow2())
     
         await app.mist.clients.addSubscription("DummyRow1", to: clientID0)
         
@@ -151,8 +145,8 @@ final class MistClientsTests: XCTestCase
         let clientID1 = await addTestClient(app: app)
         let clientID2 = await addTestClient(app: app)
         
-        await Mist.Components.shared.registerWOListenerForTesting(DummyRow1())
-        await Mist.Components.shared.registerWOListenerForTesting(DummyRow2())
+        await app.mist.components.registerWOListenerForTesting(DummyRow1())
+        await app.mist.components.registerWOListenerForTesting(DummyRow2())
         
         // add subscriptions
         await app.mist.clients.addSubscription("DummyRow1", to: clientID0)
@@ -186,8 +180,8 @@ final class MistClientsTests: XCTestCase
         let clientID0 = await addTestClient(app: app)
         let clientID1 = await addTestClient(app: app)
         
-        await Mist.Components.shared.registerWOListenerForTesting(DummyRow1())
-        await Mist.Components.shared.registerWOListenerForTesting(DummyRow2())
+        await app.mist.components.registerWOListenerForTesting(DummyRow1())
+        await app.mist.components.registerWOListenerForTesting(DummyRow2())
         
         // both clients subscribe to both components
         await app.mist.clients.addSubscription("DummyRow1", to: clientID0)
@@ -237,7 +231,7 @@ final class MistClientsTests: XCTestCase
         
         let clientID = await addTestClient(app: app)
         
-        await Mist.Components.shared.registerWOListenerForTesting(DummyRow1())
+        await app.mist.components.registerWOListenerForTesting(DummyRow1())
         
         // subscribe single client
         await app.mist.clients.addSubscription("DummyRow1", to: clientID)

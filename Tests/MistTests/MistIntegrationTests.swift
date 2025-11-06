@@ -6,13 +6,7 @@ import FluentSQLiteDriver
 @testable import Mist
 
 final class MistIntegrationTests: XCTestCase
-{
-    override func setUp() async throws
-    {
-        // reset singleton before each test
-        await Mist.Components.shared.resetForTesting()
-    }
-    
+{    
     // tests integrated subscription message flow: client -> server -> internal storage registry
     func testSubscriptionFlow() async throws
     {
@@ -23,7 +17,7 @@ final class MistIntegrationTests: XCTestCase
         app.views.use(.leaf)
         
         // register multiple components with dublicate
-        await Mist.Components.shared.registerComponents([DumbComp4133()], with: app)
+        await app.mist.components.registerComponents([DumbComp4133()], with: app)
         
         // test this client message
         let subscriptionMessage = #"{ "subscribe": { "component": "DumbComp4133" } }"#
@@ -123,7 +117,7 @@ final class MistIntegrationTests: XCTestCase
         try await app.autoMigrate()
         
         // configure mist with our test component
-        await Mist.Components.shared.registerComponents([TestComponent()], with: app)
+        await app.mist.components.registerComponents([TestComponent()], with: app)
         
         // subscription message
         let subscriptionMessage = #"{ "subscribe": { "component": "TestComponent" } }"#
