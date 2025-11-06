@@ -23,8 +23,7 @@ final class MistIntegrationTests: XCTestCase
         app.views.use(.leaf)
         
         // register multiple components with dublicate
-        let config = Mist.Configuration(for: app, components: [DumbComp4133()])
-        await Mist.Components.shared.registerComponents(using: config)
+        await Mist.Components.shared.registerComponents([DumbComp4133()], with: app)
         
         // test this client message
         let subscriptionMessage = #"{ "subscribe": { "component": "DumbComp4133" } }"#
@@ -124,8 +123,7 @@ final class MistIntegrationTests: XCTestCase
         try await app.autoMigrate()
         
         // configure mist with our test component
-        let config = Mist.Configuration(for: app, components: [TestComponent()])
-        await Mist.Components.shared.registerComponents(using: config)
+        await Mist.Components.shared.registerComponents([TestComponent()], with: app)
         
         // subscription message
         let subscriptionMessage = #"{ "subscribe": { "component": "TestComponent" } }"#

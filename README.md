@@ -207,17 +207,15 @@ app.migrations.add(
     DummyModel1.Table(),
     DummyModel2.Table()
 )
- 
-// define Mist configuration
-let config = Mist.Configuration(
-    for: app,
+
+// configure Mist with components
+await app.mist.use(
     components: [
         DummyComponent.self,
     ]
 )
 
-// initialize Mist with configuration
-await Mist.configure(using: config)
+app.views.use(.leaf)
 ```
 
 For demo purposes, create component models after configuration:
