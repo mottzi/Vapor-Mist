@@ -12,7 +12,7 @@ public actor Clients {
 
 extension Clients {
     
-    struct Client: Sendable {
+    struct Client {
         
         let id: UUID
         let socket: WebSocket
