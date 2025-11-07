@@ -113,6 +113,13 @@ class MistSocket {
                     
                     console.log(`Server update message: '${component}' (${id})`);
                 }
+                else if (data.actionResult) {
+                    const { component, id, action, result, message } = data.actionResult;
+                    const isSuccess = result.success !== undefined;
+                    const resultType = isSuccess ? 'SUCCESS' : 'FAILURE';
+                    
+                    console.log(`Action result [${resultType}]: '${action}' on '${component}' (${id}) - ${message}`);
+                }
                 else if (data.text) {
                     const { message } = data.text;
                     console.log(`Server message: '${message}'`);

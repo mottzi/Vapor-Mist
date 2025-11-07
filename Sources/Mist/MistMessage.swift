@@ -10,7 +10,7 @@ enum Message: Codable {
     
     case action(component: String, id: UUID, action: String)
     
-    case actionResult(result: Mist.ActionResult, message: String)
+    case actionResult(component: String, id: UUID, action: String, result: Mist.ActionResult, message: String)
     
 }
 
@@ -76,11 +76,14 @@ extension Message {
     
     struct ActionResult {
         
+        let component: String
+        let id: UUID
+        let action: String
         let result: Mist.ActionResult
         let message: String
         
         var wireFormat: Message {
-            .actionResult(result: result, message: message)
+            .actionResult(component: component, id: id, action: action, result: result, message: message)
         }
         
     }

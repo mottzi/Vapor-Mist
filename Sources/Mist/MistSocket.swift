@@ -59,7 +59,8 @@ struct Socket {
             case .failure(let message): message ?? "Failure"
         }
         
-        await app.mist.clients.send(Message.ActionResult(result: result, message: resultMessage), to: clientID)
+        let message = Message.ActionResult(component: component, id: id, action: action, result: result, message: resultMessage)
+        await app.mist.clients.send(message, to: clientID)
     }
     
 }
