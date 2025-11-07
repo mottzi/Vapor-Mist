@@ -1,8 +1,8 @@
 import Vapor
 import Fluent
 
-public protocol Component: Sendable {
-    
+public protocol Component: Sendable
+{
     var name: String { get }
     var template: TemplateType { get }
     var models: [any Mist.Model.Type] { get }
@@ -10,19 +10,17 @@ public protocol Component: Sendable {
     
     func render(id: UUID, on db: Database, using renderer: ViewRenderer) async -> String?
     func shouldUpdate<M: Mist.Model>(for model: M) -> Bool
-    
 }
 
-public extension Mist.Component {
-    
+public extension Mist.Component
+{
     var name: String { String(describing: Self.self) }
     var template: TemplateType { .file(path: name) }
     var actions: [any Action] { [] }
-    
 }
 
-public extension Mist.Component {
-    
+public extension Mist.Component
+{
     func render(id: UUID, on db: Database, using renderer: ViewRenderer) async -> String?
     {
         guard let context = await makeContext(of: id, in: db) else { return nil }
@@ -81,9 +79,8 @@ public extension Mist.Component {
     
 }
 
-public enum TemplateType: Sendable {
-    
+public enum TemplateType: Sendable
+{
     case file(path: String)
     case inline(template: String)
-    
 }
