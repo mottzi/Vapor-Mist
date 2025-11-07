@@ -21,31 +21,11 @@ struct Socket {
                 
                 switch message
                 {
-                case .subscribe(let component):
-                    let success = await app.mist.clients.addSubscription(component, to: clientID)
-                    let response = success
-                    ? "Client subscribed to component '\(component)'."
-                    : "Client didn't subscribe to component '\(component)'."
-                    
-                    await app.mist.clients.send(Message.Text(response), to: clientID)
-                    
-                case .action(let component, let id, let action):
-                    do
-                    {
-                        _ = try await app.mist.components.executeAction(
-                            component: component,
-                            action: action,
-                            id: id,
-                            on: app.db
-                        )
-                    }
-                    catch
-                    {
-                        app.logger.error("Action execution failed: \(error)")
-                    }
-                    
-                default:
-                    break
+                    case .subscribe(let component): 
+                        await Self.handleSubscribeMessage(component: component, clientID: clientID, app: app)
+                    case .action(let component, let id, let action): 
+                        await Self.handleActionMessage(component: component, id: id, action: action, clientID: clientID, app: app)
+                    default: break
                 }
             }
             
@@ -53,6 +33,33 @@ struct Socket {
                 Task { await app.mist.clients.removeClient(id: clientID) }
             }
         }
+    }
+    
+    static func handleSubscribeMessage(component: String, clientID: UUID, app: Application) async {
+        
+        let success = await app.mist.clients.addSubscription(component, to: clientID)
+        let response = success
+            ? "Client subscribed to component '\(component)'."
+            : "Client didn't subscribe to component '\(component)'."
+        
+        await app.mist.clients.send(Message.Text(response), to: clientID)
+    }
+    
+    static func handleActionMessage(component: String, id: UUID, action: String, clientID: UUID, app: Application) async {
+        
+        let result = await app.mist.components.performAction(
+            component: component,
+            action: action,
+            id: id,
+            on: app.db
+        )
+        
+        let resultMessage = switch result {
+            case .success(let message): message ?? "Success"
+            case .failure(let message): message ?? "Failure"
+        }
+        
+        await app.mist.clients.send(Message.ActionResult(result: result, message: resultMessage), to: clientID)
     }
     
 }

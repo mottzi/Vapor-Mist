@@ -76,6 +76,8 @@ class MistSocket {
             };
             
             this.socket.send(JSON.stringify(message));
+            
+            console.log(`Client action sent: '${actionName}' on '${componentName}' (${componentId})`);
         }
     }
     

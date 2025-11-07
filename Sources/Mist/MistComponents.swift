@@ -57,19 +57,11 @@ extension Mist.Components {
         return modelToComponents[key] != nil
     }
     
-    func executeAction(component: String, action: String, id: UUID, on db: Database) async throws -> ActionResult
+    func performAction(component: String, action: String, id: UUID, on db: Database) async -> ActionResult
     {
-        guard let componentActionHandlers = componentActions[component] else
-        {
-            throw Abort(.notFound, reason: "Component '\(component)' not found")
-        }
-        
-        guard let actionInstance = componentActionHandlers[action] else
-        {
-            throw Abort(.notFound, reason: "Action '\(action)' not found for component '\(component)'")
-        }
-        
-        return try await actionInstance.execute(id: id, on: db)
+        guard let componentActions = componentActions[component] else { return .failure(message: "Component '\(component)' not found") }
+        guard let action = componentActions[action] else { return .failure(message: "Action '\(action)' not found") }
+        return await action.perform(id: id, on: db)
     }
     
 }

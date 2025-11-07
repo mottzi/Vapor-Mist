@@ -5,7 +5,7 @@ public protocol Action: Sendable {
     
     var name: String { get }
     
-    func execute(id: UUID, on db: Database) async throws -> ActionResult
+    func perform(id: UUID, on db: Database) async -> ActionResult
     
 }
 
@@ -17,9 +17,7 @@ public extension Action {
 
 public enum ActionResult: Codable, Sendable {
     
-    case success
-    case failure(message: String)
-    case redirect(path: String)
+    case success(message: String? = nil)
+    case failure(message: String? = nil)
     
 }
-

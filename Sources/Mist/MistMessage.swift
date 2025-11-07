@@ -10,11 +10,22 @@ enum Message: Codable {
     
     case action(component: String, id: UUID, action: String)
     
+    case actionResult(result: Mist.ActionResult, message: String)
+    
 }
 
 extension Clients {
     
     func send(_ message: Message.Text, to clientID: UUID) async {
+        
+        guard let client = clients.first(where: { $0.id == clientID }) else { return }
+        guard let jsonData = try? JSONEncoder().encode(message.wireFormat) else { return }
+        guard let jsonString = String(data: jsonData, encoding: .utf8) else { return }
+        
+        try? await client.socket.send(jsonString)
+    }
+    
+    func send(_ message: Message.ActionResult, to clientID: UUID) async {
         
         guard let client = clients.first(where: { $0.id == clientID }) else { return }
         guard let jsonData = try? JSONEncoder().encode(message.wireFormat) else { return }
@@ -59,6 +70,17 @@ extension Message {
         
         var wireFormat: Message {
             .update(component: component, id: id, html: html)
+        }
+        
+    }
+    
+    struct ActionResult {
+        
+        let result: Mist.ActionResult
+        let message: String
+        
+        var wireFormat: Message {
+            .actionResult(result: result, message: message)
         }
         
     }

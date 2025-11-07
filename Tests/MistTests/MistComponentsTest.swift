@@ -173,9 +173,10 @@ final class MistComponentsTest: XCTestCase
         // verify actions are correctly stored
         let actions = componentActions["DummyRowWithActions"]
         XCTAssertNotNil(actions, "DummyRowWithActions should have actions")
-        XCTAssertEqual(actions?.count, 2, "DummyRowWithActions should have 2 actions")
+        XCTAssertEqual(actions?.count, 3, "DummyRowWithActions should have 3 actions")
         XCTAssertTrue(actions?.keys.contains("testAction") ?? false, "Should contain 'testAction'")
         XCTAssertTrue(actions?.keys.contains("anotherAction") ?? false, "Should contain 'anotherAction'")
+        XCTAssertTrue(actions?.keys.contains("failingAction") ?? false, "Should contain 'failingAction'")
         
         try await app.asyncShutdown()
     }
@@ -222,7 +223,7 @@ final class MistComponentsTest: XCTestCase
         await app.mist.components.registerComponents([DummyRowWithActions()], with: app)
         
         // execute action
-        let result = try await app.mist.components.executeAction(
+        let result = await app.mist.components.performAction(
             component: "DummyRowWithActions",
             action: "testAction",
             id: modelID,
@@ -230,10 +231,78 @@ final class MistComponentsTest: XCTestCase
         )
         
         // verify result
-        if case .success = result {
-            XCTAssertTrue(true, "Action should return success")
+        if case .success(let message) = result {
+            XCTAssertNil(message, "TestAction should return success without a message")
         } else {
             XCTFail("Action should return success")
+        }
+        
+        try await app.autoRevert()
+        try await app.asyncShutdown()
+    }
+    
+    // tests action execution returns correct associated message values
+    func testActionResultMessages() async throws
+    {
+        // initialize test environment
+        let app = try await Application.make(.testing)
+        app.databases.use(.sqlite(.memory), as: .sqlite)
+        
+        // setup test database
+        app.migrations.add(DummyModel1.Table())
+        try await app.autoMigrate()
+        
+        // create test model
+        let testModel = DummyModel1(text: "test")
+        try await testModel.save(on: app.db)
+        guard let modelID = testModel.id else {
+            XCTFail("Model should have an ID after save")
+            return
+        }
+        
+        // register component with actions
+        await app.mist.components.registerComponents([DummyRowWithActions()], with: app)
+        
+        // test action with no message (should be nil)
+        let result1 = await app.mist.components.performAction(
+            component: "DummyRowWithActions",
+            action: "testAction",
+            id: modelID,
+            on: app.db
+        )
+        
+        if case .success(let message) = result1 {
+            XCTAssertNil(message, "testAction should return success with nil message")
+        } else {
+            XCTFail("testAction should return success")
+        }
+        
+        // test action with custom success message
+        let result2 = await app.mist.components.performAction(
+            component: "DummyRowWithActions",
+            action: "anotherAction",
+            id: modelID,
+            on: app.db
+        )
+        
+        if case .success(let message) = result2 {
+            XCTAssertEqual(message, "Custom success message", "anotherAction should return success with custom message")
+        } else {
+            XCTFail("anotherAction should return success")
+        }
+        
+        // test action with failure and custom message
+        let result3 = await app.mist.components.performAction(
+            component: "DummyRowWithActions",
+            action: "failingAction",
+            id: modelID,
+            on: app.db
+        )
+        
+        if case .failure(let message) = result3 {
+            XCTAssertEqual(message, "This action always fails", "failingAction should return failure with custom message")
+        } else {
+            XCTFail("failingAction should return failure")
         }
         
         try await app.autoRevert()
@@ -251,19 +320,19 @@ final class MistComponentsTest: XCTestCase
         await app.mist.components.registerComponents([DummyRowWithActions()], with: app)
         
         // attempt to execute action on non-existent component
-        do {
-            _ = try await app.mist.components.executeAction(
-                component: "NonExistentComponent",
-                action: "testAction",
-                id: UUID(),
-                on: app.db
-            )
-            XCTFail("Should throw an error for non-existent component")
-        } catch let error as AbortError {
-            XCTAssertEqual(error.status, .notFound, "Should throw notFound error")
-            XCTAssertTrue(error.reason.contains("NonExistentComponent"), "Error should mention component name")
-        } catch {
-            XCTFail("Should throw AbortError")
+        let result = await app.mist.components.performAction(
+            component: "NonExistentComponent",
+            action: "testAction",
+            id: UUID(),
+            on: app.db
+        )
+        
+        // verify result is failure with appropriate message
+        if case .failure(let message) = result {
+            XCTAssertNotNil(message, "Failure should include a message")
+            XCTAssertTrue(message?.contains("NonExistentComponent") ?? false, "Error message should mention component name")
+        } else {
+            XCTFail("Should return failure for non-existent component")
         }
         
         try await app.asyncShutdown()
@@ -280,19 +349,19 @@ final class MistComponentsTest: XCTestCase
         await app.mist.components.registerComponents([DummyRowWithActions()], with: app)
         
         // attempt to execute non-existent action
-        do {
-            _ = try await app.mist.components.executeAction(
-                component: "DummyRowWithActions",
-                action: "nonExistentAction",
-                id: UUID(),
-                on: app.db
-            )
-            XCTFail("Should throw an error for non-existent action")
-        } catch let error as AbortError {
-            XCTAssertEqual(error.status, .notFound, "Should throw notFound error")
-            XCTAssertTrue(error.reason.contains("nonExistentAction"), "Error should mention action name")
-        } catch {
-            XCTFail("Should throw AbortError")
+        let result = await app.mist.components.performAction(
+            component: "DummyRowWithActions",
+            action: "nonExistentAction",
+            id: UUID(),
+            on: app.db
+        )
+        
+        // verify result is failure with appropriate message
+        if case .failure(let message) = result {
+            XCTAssertNotNil(message, "Failure should include a message")
+            XCTAssertTrue(message?.contains("nonExistentAction") ?? false, "Error message should mention action name")
+        } else {
+            XCTFail("Should return failure for non-existent action")
         }
         
         try await app.asyncShutdown()
@@ -344,7 +413,8 @@ struct DummyRowWithActions: Mist.Component
     {
         return [
             TestAction(),
-            AnotherAction()
+            AnotherAction(),
+            FailingAction()
         ]
     }
 }
@@ -353,9 +423,9 @@ struct TestAction: Action
 {
     let name: String = "testAction"
     
-    func execute(id: UUID, on db: Database) async throws -> ActionResult
+    func perform(id: UUID, on db: Database) async -> ActionResult
     {
-        return .success
+        return .success()
     }
 }
 
@@ -363,9 +433,19 @@ struct AnotherAction: Action
 {
     let name: String = "anotherAction"
     
-    func execute(id: UUID, on db: Database) async throws -> ActionResult
+    func perform(id: UUID, on db: Database) async -> ActionResult
     {
-        return .redirect(path: "/test")
+        return .success(message: "Custom success message")
+    }
+}
+
+struct FailingAction: Action
+{
+    let name: String = "failingAction"
+    
+    func perform(id: UUID, on db: Database) async -> ActionResult
+    {
+        return .failure(message: "This action always fails")
     }
 }
 
