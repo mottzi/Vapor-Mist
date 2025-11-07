@@ -18,6 +18,12 @@ public extension Mist.Model {
             return try? await Self.query(on: db).all()
         }
     }
+    
+    /// Override to add dynamic fields for template context
+    /// - Returns: A dictionary of additional key-value pairs to expose in Leaf templates
+    func contextExtras() -> [String: any Encodable] {
+        return [:]
+    }
 
 }
 
@@ -41,7 +47,19 @@ public struct ModelContainer: Encodable {
         var container = encoder.container(keyedBy: StringCodingKey.self)
         
         for (key, value) in models {
+            // First encode the base model
             try container.encode(value, forKey: StringCodingKey(key))
+            
+            // Then encode extras if the model provides them
+            if let model = value as? any Mist.Model {
+                let extras = model.contextExtras()
+                if !extras.isEmpty {
+                    var sub = container.nestedContainer(keyedBy: StringCodingKey.self, forKey: StringCodingKey(key))
+                    for (extraKey, extraValue) in extras {
+                        try sub.encode(extraValue, forKey: StringCodingKey(extraKey))
+                    }
+                }
+            }
         }
     }
     
