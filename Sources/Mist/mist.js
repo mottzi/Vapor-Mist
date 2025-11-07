@@ -77,7 +77,7 @@ class MistSocket {
             
             this.socket.send(JSON.stringify(message));
             
-            console.log(`Client action sent: '${actionName}' on '${componentName}' (${componentId})`);
+            console.log(`Client action sent: '${actionName}' on '${componentName}' (${componentId.substring(0, 8)})`);
         }
     }
     
@@ -111,14 +111,14 @@ class MistSocket {
                         element.outerHTML = html;
                     });
                     
-                    console.log(`Server update message: '${component}' (${id})`);
+                    console.log(`Server update message: '${component}' (${id ? id.substring(0, 8) : 'null'})`);
                 }
                 else if (data.actionResult) {
                     const { component, id, action, result, message } = data.actionResult;
                     const isSuccess = result.success !== undefined;
                     const resultType = isSuccess ? 'SUCCESS' : 'FAILURE';
                     
-                    console.log(`Action result [${resultType}]: '${action}' on '${component}' (${id}) - ${message}`);
+                    console.log(`Action result [${resultType}]: '${action}' on '${component}' (${id.substring(0, 8)}) - ${message}`);
                 }
                 else if (data.text) {
                     const { message } = data.text;
