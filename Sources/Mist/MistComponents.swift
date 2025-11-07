@@ -5,7 +5,7 @@ public actor Components {
         
     var components: [any Mist.Component] = []
     var modelToComponents: [ObjectIdentifier: [any Mist.Component]] = [:]
-    var componentActions: [String: [String: MistActionHandler]] = [:]
+    var componentActions: [String: [String: any Action]] = [:]
     
     init() {}
 
@@ -35,7 +35,7 @@ extension Mist.Components {
             
             if !component.actions.isEmpty
             {
-                componentActions[component.name] = component.actions
+                componentActions[component.name] = Dictionary(uniqueKeysWithValues: component.actions.map { ($0.name, $0) })
             }
         }
     }
@@ -64,12 +64,12 @@ extension Mist.Components {
             throw Abort(.notFound, reason: "Component '\(component)' not found")
         }
         
-        guard let actionHandler = componentActionHandlers[action] else
+        guard let actionInstance = componentActionHandlers[action] else
         {
             throw Abort(.notFound, reason: "Action '\(action)' not found for component '\(component)'")
         }
         
-        return try await actionHandler(id, db)
+        return try await actionInstance.execute(id: id, on: db)
     }
     
 }

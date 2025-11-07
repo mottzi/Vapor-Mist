@@ -340,16 +340,32 @@ struct DummyRowWithActions: Mist.Component
 {
     let models: [any Mist.Model.Type] = [DummyModel1.self]
     
-    var actions: [String: MistActionHandler]
+    var actions: [any Action]
     {
         return [
-            "testAction": { id, db in
-                return .success
-            },
-            "anotherAction": { id, db in
-                return .redirect(path: "/test")
-            }
+            TestAction(),
+            AnotherAction()
         ]
+    }
+}
+
+struct TestAction: Action
+{
+    let name: String = "testAction"
+    
+    func execute(id: UUID, on db: Database) async throws -> ActionResult
+    {
+        return .success
+    }
+}
+
+struct AnotherAction: Action
+{
+    let name: String = "anotherAction"
+    
+    func execute(id: UUID, on db: Database) async throws -> ActionResult
+    {
+        return .redirect(path: "/test")
     }
 }
 
