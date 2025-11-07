@@ -18,14 +18,35 @@ struct Socket {
                 
                 guard let data = text.data(using: .utf8) else { return }
                 guard let message = try? JSONDecoder().decode(Mist.Message.self, from: data) else { return }
-                guard case .subscribe(let component) = message else { return }
                 
-                let success = await app.mist.clients.addSubscription(component, to: clientID)
-                let response = success
-                ? "Client subscribed to component '\(component)'."
-                : "Client didn't subscribe to component '\(component)'."
-                
-                await app.mist.clients.send(Message.Text(response), to: clientID)
+                switch message
+                {
+                case .subscribe(let component):
+                    let success = await app.mist.clients.addSubscription(component, to: clientID)
+                    let response = success
+                    ? "Client subscribed to component '\(component)'."
+                    : "Client didn't subscribe to component '\(component)'."
+                    
+                    await app.mist.clients.send(Message.Text(response), to: clientID)
+                    
+                case .action(let component, let id, let action):
+                    do
+                    {
+                        _ = try await app.mist.components.executeAction(
+                            component: component,
+                            action: action,
+                            id: id,
+                            on: app.db
+                        )
+                    }
+                    catch
+                    {
+                        app.logger.error("Action execution failed: \(error)")
+                    }
+                    
+                default:
+                    break
+                }
             }
             
             ws.onClose.whenComplete() { _ in

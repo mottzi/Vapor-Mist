@@ -6,6 +6,7 @@ public protocol Component: Sendable {
     var name: String { get }
     var template: TemplateType { get }
     var models: [any Mist.Model.Type] { get }
+    var actions: [String: MistActionHandler] { get }
     
     func render(id: UUID, on db: Database, using renderer: ViewRenderer) async -> String?
     func shouldUpdate<M: Mist.Model>(for model: M) -> Bool
@@ -16,6 +17,7 @@ public extension Mist.Component {
     
     var name: String { String(describing: Self.self) }
     var template: TemplateType { .file(path: name) }
+    var actions: [String: MistActionHandler] { [:] }
     
 }
 
@@ -49,7 +51,6 @@ public extension Mist.Component {
         {
             guard let modelData = await model.find(componentID, db) else { continue }
             let modelName = String(describing: model).lowercased()
-            
             container.add(modelData, for: modelName)
         }
         

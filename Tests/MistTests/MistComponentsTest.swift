@@ -153,6 +153,151 @@ final class MistComponentsTest: XCTestCase
         try await app.asyncShutdown()
     }
     
+    // tests that actions are correctly registered for components
+    func testActionRegistration() async throws
+    {
+        // initialize test environment
+        let app = try await Application.make(.testing)
+        app.databases.use(.sqlite(.memory), as: .sqlite)
+        
+        // register components with actions
+        await app.mist.components.registerComponents([DummyRowWithActions()], with: app)
+        
+        // get componentActions index directly
+        let componentActions = await app.mist.components.componentActions
+        
+        // verify component with actions is in the index
+        XCTAssertEqual(componentActions.count, 1, "ComponentActions should contain 1 component")
+        XCTAssertTrue(componentActions.keys.contains("DummyRowWithActions"), "ComponentActions should contain DummyRowWithActions")
+        
+        // verify actions are correctly stored
+        let actions = componentActions["DummyRowWithActions"]
+        XCTAssertNotNil(actions, "DummyRowWithActions should have actions")
+        XCTAssertEqual(actions?.count, 2, "DummyRowWithActions should have 2 actions")
+        XCTAssertTrue(actions?.keys.contains("testAction") ?? false, "Should contain 'testAction'")
+        XCTAssertTrue(actions?.keys.contains("anotherAction") ?? false, "Should contain 'anotherAction'")
+        
+        try await app.asyncShutdown()
+    }
+    
+    // tests that components without actions are not added to componentActions index
+    func testEmptyActionRegistration() async throws
+    {
+        // initialize test environment
+        let app = try await Application.make(.testing)
+        app.databases.use(.sqlite(.memory), as: .sqlite)
+        
+        // register components without actions
+        await app.mist.components.registerComponents([DummyRow1(), DummyRow2()], with: app)
+        
+        // get componentActions index directly
+        let componentActions = await app.mist.components.componentActions
+        
+        // verify no components in the actions index
+        XCTAssertEqual(componentActions.count, 0, "ComponentActions should be empty when no components have actions")
+        
+        try await app.asyncShutdown()
+    }
+    
+    // tests successful action execution
+    func testActionExecution() async throws
+    {
+        // initialize test environment
+        let app = try await Application.make(.testing)
+        app.databases.use(.sqlite(.memory), as: .sqlite)
+        
+        // setup test database
+        app.migrations.add(DummyModel1.Table())
+        try await app.autoMigrate()
+        
+        // create test model
+        let testModel = DummyModel1(text: "test")
+        try await testModel.save(on: app.db)
+        guard let modelID = testModel.id else {
+            XCTFail("Model should have an ID after save")
+            return
+        }
+        
+        // register component with actions
+        await app.mist.components.registerComponents([DummyRowWithActions()], with: app)
+        
+        // execute action
+        let result = try await app.mist.components.executeAction(
+            component: "DummyRowWithActions",
+            action: "testAction",
+            id: modelID,
+            on: app.db
+        )
+        
+        // verify result
+        if case .success = result {
+            XCTAssertTrue(true, "Action should return success")
+        } else {
+            XCTFail("Action should return success")
+        }
+        
+        try await app.autoRevert()
+        try await app.asyncShutdown()
+    }
+    
+    // tests action execution with non-existent component
+    func testActionExecutionInvalidComponent() async throws
+    {
+        // initialize test environment
+        let app = try await Application.make(.testing)
+        app.databases.use(.sqlite(.memory), as: .sqlite)
+        
+        // register component with actions
+        await app.mist.components.registerComponents([DummyRowWithActions()], with: app)
+        
+        // attempt to execute action on non-existent component
+        do {
+            _ = try await app.mist.components.executeAction(
+                component: "NonExistentComponent",
+                action: "testAction",
+                id: UUID(),
+                on: app.db
+            )
+            XCTFail("Should throw an error for non-existent component")
+        } catch let error as AbortError {
+            XCTAssertEqual(error.status, .notFound, "Should throw notFound error")
+            XCTAssertTrue(error.reason.contains("NonExistentComponent"), "Error should mention component name")
+        } catch {
+            XCTFail("Should throw AbortError")
+        }
+        
+        try await app.asyncShutdown()
+    }
+    
+    // tests action execution with non-existent action
+    func testActionExecutionInvalidAction() async throws
+    {
+        // initialize test environment
+        let app = try await Application.make(.testing)
+        app.databases.use(.sqlite(.memory), as: .sqlite)
+        
+        // register component with actions
+        await app.mist.components.registerComponents([DummyRowWithActions()], with: app)
+        
+        // attempt to execute non-existent action
+        do {
+            _ = try await app.mist.components.executeAction(
+                component: "DummyRowWithActions",
+                action: "nonExistentAction",
+                id: UUID(),
+                on: app.db
+            )
+            XCTFail("Should throw an error for non-existent action")
+        } catch let error as AbortError {
+            XCTAssertEqual(error.status, .notFound, "Should throw notFound error")
+            XCTAssertTrue(error.reason.contains("nonExistentAction"), "Error should mention action name")
+        } catch {
+            XCTFail("Should throw AbortError")
+        }
+        
+        try await app.asyncShutdown()
+    }
+    
     // tests reverse index with component that has multiple models
     func testMultipleModelsPerComponent() async throws
     {
@@ -189,6 +334,23 @@ struct DummyRow1: Mist.Component
 struct DummyRow2: Mist.Component
 {
     let models: [any Mist.Model.Type] = [DummyModel1.self]
+}
+
+struct DummyRowWithActions: Mist.Component
+{
+    let models: [any Mist.Model.Type] = [DummyModel1.self]
+    
+    var actions: [String: MistActionHandler]
+    {
+        return [
+            "testAction": { id, db in
+                return .success
+            },
+            "anotherAction": { id, db in
+                return .redirect(path: "/test")
+            }
+        ]
+    }
 }
 
 final class DummyModel1: Mist.Model, Content, @unchecked Sendable

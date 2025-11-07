@@ -5,13 +5,15 @@ public protocol Model: Fluent.Model where IDValue == UUID {}
 
 public extension Mist.Model {
 
-    static var find: (UUID, Database) async -> (any Mist.Model)? {
+    static var find: (UUID, Database) async -> (any Mist.Model)?
+    {
         return { id, db in
             return try? await Self.find(id, on: db)
         }
     }
     
-    static var findAll: (Database) async -> [any Mist.Model]? {
+    static var findAll: (Database) async -> [any Mist.Model]?
+    {
         return { db in
             return try? await Self.query(on: db).all()
         }

@@ -8,6 +8,8 @@ enum Message: Codable {
     
     case update(component: String, id: UUID?, html: String)
     
+    case action(component: String, id: UUID, action: String)
+    
 }
 
 extension Clients {

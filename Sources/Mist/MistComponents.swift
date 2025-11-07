@@ -5,6 +5,7 @@ public actor Components {
         
     var components: [any Mist.Component] = []
     var modelToComponents: [ObjectIdentifier: [any Mist.Component]] = [:]
+    var componentActions: [String: [String: MistActionHandler]] = [:]
     
     init() {}
 
@@ -31,6 +32,11 @@ extension Mist.Components {
                 let key = ObjectIdentifier(model)
                 modelToComponents[key, default: []].append(component)
             }
+            
+            if !component.actions.isEmpty
+            {
+                componentActions[component.name] = component.actions
+            }
         }
     }
     
@@ -49,6 +55,21 @@ extension Mist.Components {
     {
         let key = ObjectIdentifier(model)
         return modelToComponents[key] != nil
+    }
+    
+    func executeAction(component: String, action: String, id: UUID, on db: Database) async throws -> ActionResult
+    {
+        guard let componentActionHandlers = componentActions[component] else
+        {
+            throw Abort(.notFound, reason: "Component '\(component)' not found")
+        }
+        
+        guard let actionHandler = componentActionHandlers[action] else
+        {
+            throw Abort(.notFound, reason: "Action '\(action)' not found for component '\(component)'")
+        }
+        
+        return try await actionHandler(id, db)
     }
     
 }

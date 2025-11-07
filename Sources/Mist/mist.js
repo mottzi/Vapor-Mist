@@ -12,6 +12,7 @@ class MistSocket {
         
         document.addEventListener('visibilitychange', () => this.visibilityChange());
         window.addEventListener('online', () => this.connect());
+        document.addEventListener('click', (event) => this.handleAction(event));
     }
     
     subscribeToPageComponents() {
@@ -41,6 +42,36 @@ class MistSocket {
             const message = {
                 subscribe: {
                     component: component
+                }
+            };
+            
+            this.socket.send(JSON.stringify(message));
+        }
+    }
+    
+    handleAction(event) {
+        
+        const target = event.target.closest('[mist-action]');
+        
+        if (!target) return;
+        
+        const actionName = target.getAttribute('mist-action');
+        const componentElement = target.closest('[mist-component][mist-id]');
+        
+        if (!componentElement || !actionName) return;
+        
+        const componentName = componentElement.getAttribute('mist-component');
+        const componentId = componentElement.getAttribute('mist-id');
+        
+        if (!componentName || !componentId) return;
+        
+        if (this.isConnected()) {
+            
+            const message = {
+                action: {
+                    component: componentName,
+                    id: componentId,
+                    action: actionName
                 }
             };
             
