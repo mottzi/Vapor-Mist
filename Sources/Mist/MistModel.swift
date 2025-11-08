@@ -2,7 +2,13 @@ import Vapor
 import Fluent
 import Logging
 
-public protocol Model: Fluent.Model where IDValue == UUID {}
+public protocol Model: Fluent.Model where IDValue == UUID {
+    
+    /// Override to add dynamic fields for template context
+    /// - Returns: A dictionary of additional key-value pairs to expose in Leaf templates
+    func contextExtras() -> [String: any Encodable]
+    
+}
 
 public extension Mist.Model {
 
@@ -20,8 +26,7 @@ public extension Mist.Model {
         }
     }
     
-    /// Override to add dynamic fields for template context
-    /// - Returns: A dictionary of additional key-value pairs to expose in Leaf templates
+    /// Default implementation returns empty dictionary
     func contextExtras() -> [String: any Encodable] {
         return [:]
     }
