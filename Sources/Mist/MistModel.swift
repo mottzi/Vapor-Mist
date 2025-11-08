@@ -112,16 +112,32 @@ fileprivate struct EncodableWithExtras: Encodable {
         for (key, value) in extras {
             logger.warning("🔄 Processing extra '\(key)' of type \(type(of: value))")
             
-            do {
-                let extraData = try JSONEncoder().encode(AnyEncodable(value))
-                logger.warning("   Encoded to \(extraData.count) bytes: \(String(data: extraData, encoding: .utf8) ?? "invalid UTF-8")")
-                
-                let decodedExtra = try JSONSerialization.jsonObject(with: extraData, options: [.allowFragments])
-                merged[key] = decodedExtra
-                logger.warning("➕ Added extra '\(key)': \(decodedExtra)")
-            } catch {
-                logger.warning("❌ Failed to process extra '\(key)': \(error)")
-                throw error
+            // For simple types, just add them directly without JSON round-tripping
+            if let string = value as? String {
+                merged[key] = string
+                logger.warning("➕ Added string extra '\(key)': \(string)")
+            } else if let int = value as? Int {
+                merged[key] = int
+                logger.warning("➕ Added int extra '\(key)': \(int)")
+            } else if let double = value as? Double {
+                merged[key] = double
+                logger.warning("➕ Added double extra '\(key)': \(double)")
+            } else if let bool = value as? Bool {
+                merged[key] = bool
+                logger.warning("➕ Added bool extra '\(key)': \(bool)")
+            } else {
+                // For complex types, use JSON round-trip
+                do {
+                    let extraData = try JSONEncoder().encode(AnyEncodable(value))
+                    logger.warning("   Encoded to \(extraData.count) bytes: \(String(data: extraData, encoding: .utf8) ?? "invalid UTF-8")")
+                    
+                    let decodedExtra = try JSONSerialization.jsonObject(with: extraData, options: [.allowFragments])
+                    merged[key] = decodedExtra
+                    logger.warning("➕ Added complex extra '\(key)': \(decodedExtra)")
+                } catch {
+                    logger.warning("❌ Failed to process extra '\(key)': \(error)")
+                    throw error
+                }
             }
         }
         
