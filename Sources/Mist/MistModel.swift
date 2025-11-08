@@ -68,14 +68,31 @@ private struct ModelWithExtras: Encodable {
         
         // Step 3: Merge extras into dictionary
         var mergedDict = modelDict
-        for (key, value) in extras {
-            logger.warning("ModelWithExtras.encode: Adding extra '\(key)' = \(value)")
+        for (key, value) in extras.sorted(by: { $0.key < $1.key }) {
+            logger.warning("ModelWithExtras.encode: Adding extra '\(key)' = '\(value)' (type: \(type(of: value)))")
             
             // Encode the extra value to JSON to get its Any representation
-            if let extraData = try? jsonEncoder.encode(value),
-               let extraValue = try? JSONSerialization.jsonObject(with: extraData) {
+            do {
+                let extraData = try jsonEncoder.encode(value)
+                logger.warning("ModelWithExtras.encode: Encoded to JSON data: \(extraData.count) bytes")
+                
+                let extraValue = try JSONSerialization.jsonObject(with: extraData)
+                logger.warning("ModelWithExtras.encode: Deserialized to: \(extraValue) (type: \(type(of: extraValue)))")
+                
                 mergedDict[key] = extraValue
-                logger.warning("ModelWithExtras.encode: Extra '\(key)' added successfully")
+                logger.warning("ModelWithExtras.encode: Extra '\(key)' added successfully to merged dict")
+            } catch {
+                logger.warning("ModelWithExtras.encode: Failed to encode extra '\(key)': \(error)")
+                // Fallback: try to use the value directly if it's a basic type
+                if let string = value as? String {
+                    mergedDict[key] = string
+                    logger.warning("ModelWithExtras.encode: Used string value directly for '\(key)'")
+                } else if let int = value as? Int {
+                    mergedDict[key] = int
+                    logger.warning("ModelWithExtras.encode: Used int value directly for '\(key)'")
+                } else {
+                    logger.warning("ModelWithExtras.encode: Could not add extra '\(key)'")
+                }
             }
         }
         
