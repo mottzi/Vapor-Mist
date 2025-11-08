@@ -52,7 +52,6 @@ import Vapor
 import Fluent
 import Mist
 
-@ExtraContextProvider  // Optional: Use macro for automatic contextExtras() generation
 final class DummyModel1: Mist.Model, Content
 {
     static let schema = "dummymodel1"
@@ -65,16 +64,6 @@ final class DummyModel1: Mist.Model, Content
     
     @Timestamp(key: "created", on: .create) 
     var created: Date?
-    
-    // Optional: Add computed properties for template context
-    @ExtraContext var textUpper: String {
-        text.uppercased()
-    }
-    
-    @ExtraContext var ageInDays: Int {
-        guard let created = created else { return 0 }
-        return Calendar.current.dateComponents([.day], from: created, to: Date()).day ?? 0
-    }
     
     init() {}
     init(text: String) { self.text = text }
@@ -128,9 +117,6 @@ File *Resources/Views/DummyComponent.leaf*:
     <td>#(component.dummymodel1.id)</td>
     <td>#(component.dummymodel1.text)</td>
     <td>#(component.dummymodel2.text)</td>
-    <!-- Optional: Use computed properties from @ExtraContext -->
-    <td>#(component.dummymodel1.textUpper)</td>
-    <td>Age: #(component.dummymodel1.ageInDays) days</td>
 </tr>
 
 ```
@@ -264,7 +250,6 @@ Simply copy this file to your application's /Public directory.
 - Component subscription system
 - Support for single and multi-model components (with shared UUID)
 - Simple client-side DOM replacement with minimal JS
-- **Swift macros for automatic context extras generation** (see [MACRO_USAGE.md](MACRO_USAGE.md))
 
 **Implementation Details**:
 
