@@ -43,8 +43,25 @@ fileprivate struct AnyEncodable: Encodable {
 
     func encode(to encoder: Encoder) throws {
         switch value {
-        case let v as Encodable:
-            try v.encode(to: encoder)
+        case is NSNull:
+            var container = encoder.singleValueContainer()
+            try container.encodeNil()
+
+        case let v as String:
+            var container = encoder.singleValueContainer()
+            try container.encode(v)
+
+        case let v as Bool:
+            var container = encoder.singleValueContainer()
+            try container.encode(v)
+
+        case let v as Int:
+            var container = encoder.singleValueContainer()
+            try container.encode(v)
+
+        case let v as Double:
+            var container = encoder.singleValueContainer()
+            try container.encode(v)
 
         case let v as [String: Any]:
             var container = encoder.container(keyedBy: StringCodingKey.self)
@@ -57,26 +74,6 @@ fileprivate struct AnyEncodable: Encodable {
             for val in v {
                 try container.encode(AnyEncodable(val))
             }
-
-        case let v as String:
-            var container = encoder.singleValueContainer()
-            try container.encode(v)
-
-        case let v as Int:
-            var container = encoder.singleValueContainer()
-            try container.encode(v)
-
-        case let v as Double:
-            var container = encoder.singleValueContainer()
-            try container.encode(v)
-
-        case let v as Bool:
-            var container = encoder.singleValueContainer()
-            try container.encode(v)
-
-        case is NSNull:
-            var container = encoder.singleValueContainer()
-            try container.encodeNil()
 
         default:
             let context = EncodingError.Context(
@@ -150,26 +147,13 @@ public struct ModelContainer: Encodable {
     public func encode(to encoder: Encoder) throws {
         let logger = Logger(label: "Mist.ModelContainer")
         
-        // Debug: Log what we're about to encode
-        let jsonEncoder = JSONEncoder()
-        jsonEncoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        
-        do {
-            let debugData = try jsonEncoder.encode(self)
-            if let debugString = String(data: debugData, encoding: .utf8) {
-                logger.warning("📦 ModelContainer encoding:\n\(debugString)")
-            }
-        } catch {
-            logger.warning("⚠️ Failed to generate debug output: \(error)")
-        }
-        
         var container = encoder.container(keyedBy: StringCodingKey.self)
         
         for (key, value) in models {
             // Get extras from the model via protocol method
             let extras = value.contextExtras()
             
-            logger.warning("🔑 Encoding model '\(key)' with \(extras.count) extras: \(extras.keys.sorted())")
+            logger.warning("🔑 Encoding model '\(key)' (type: \(type(of: value))) with \(extras.count) extras: \(extras.keys.sorted())")
             
             // Wrap base value together with extras so both get encoded inside the same nested object.
             let wrapper = EncodableWithExtras(base: value, extras: extras)
