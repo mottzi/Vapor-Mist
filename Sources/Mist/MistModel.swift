@@ -1,6 +1,5 @@
 import Vapor
 import Fluent
-import Logging
 
 public protocol Model: Fluent.Model where IDValue == UUID {
     
@@ -34,80 +33,24 @@ public extension Mist.Model {
 }
 
 // Wrapper that combines a model and its context extras
-private struct ModelWithExtras: Encodable {
-    
-    let model: any Mist.Model
+fileprivate struct EncodableWithExtras: Encodable {
+
+    let base: any Encodable
     let extras: [String: any Encodable]
-    
+
     func encode(to encoder: Encoder) throws {
-        let logger = Logger(label: "Mist")
-        
-        // Step 1: Encode model to JSON
-        let jsonEncoder = JSONEncoder()
-        guard let modelData = try? jsonEncoder.encode(model) else {
-            throw EncodingError.invalidValue(model, EncodingError.Context(
-                codingPath: encoder.codingPath,
-                debugDescription: "Failed to encode model"
-            ))
-        }
-        
-        // Step 2: Decode JSON to dictionary
-        guard let modelDict = try? JSONSerialization.jsonObject(with: modelData) as? [String: Any] else {
-            throw EncodingError.invalidValue(model, EncodingError.Context(
-                codingPath: encoder.codingPath,
-                debugDescription: "Failed to decode model JSON"
-            ))
-        }
-        
-        // Step 3: Merge extras into dictionary
-        var mergedDict = modelDict
-        for (key, value) in extras {
-            // Try to encode the extra value to JSON
-            do {
-                let extraData = try jsonEncoder.encode(value)
-                let extraValue = try JSONSerialization.jsonObject(with: extraData)
-                mergedDict[key] = extraValue
-            } catch {
-                // Fallback: use the value directly if it's a basic type
-                if let string = value as? String {
-                    mergedDict[key] = string
-                } else if let int = value as? Int {
-                    mergedDict[key] = int
-                } else if let double = value as? Double {
-                    mergedDict[key] = double
-                } else if let bool = value as? Bool {
-                    mergedDict[key] = bool
-                }
+        // 1) encode base model into same encoder (this writes stored fields)
+        try base.encode(to: encoder)
+
+        // 2) then encode extras into same nested encoder under string keys
+        if !extras.isEmpty {
+            var container = encoder.container(keyedBy: StringCodingKey.self)
+            for (k, v) in extras {
+                try container.encode(v, forKey: StringCodingKey(k))
             }
         }
-        
-        // Log result
-        logger.warning("[\(type(of: model))] Encoded with properties: \(mergedDict.keys.sorted().joined(separator: ", "))")
-        
-        // Step 4: Encode merged dictionary
-        var container = encoder.container(keyedBy: StringCodingKey.self)
-        for (key, value) in mergedDict {
-            try encodeAnyValue(value, forKey: StringCodingKey(key), in: &container)
-        }
     }
-    
-    private func encodeAnyValue(_ value: Any, forKey key: StringCodingKey, in container: inout KeyedEncodingContainer<StringCodingKey>) throws {
-        switch value {
-        case let string as String:
-            try container.encode(string, forKey: key)
-        case let int as Int:
-            try container.encode(int, forKey: key)
-        case let double as Double:
-            try container.encode(double, forKey: key)
-        case let bool as Bool:
-            try container.encode(bool, forKey: key)
-        case is NSNull:
-            try container.encodeNil(forKey: key)
-        default:
-            try container.encode(String(describing: value), forKey: key)
-        }
-    }
-    
+
 }
 
 // container to hold model instances for rendering
@@ -129,10 +72,12 @@ public struct ModelContainer: Encodable {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: StringCodingKey.self)
         
-        for (key, model) in models {
-            // Get extras from the model and merge with base model properties
-            let extras = model.contextExtras()
-            let wrapper = ModelWithExtras(model: model, extras: extras)
+        for (key, value) in models {
+            // Get extras from the model via protocol method
+            let extras = value.contextExtras()
+            
+            // Wrap base value together with extras so both get encoded inside the same nested object.
+            let wrapper = EncodableWithExtras(base: value, extras: extras)
             try container.encode(wrapper, forKey: StringCodingKey(key))
         }
     }
