@@ -102,55 +102,53 @@ private struct EncodableWithExtras: Encodable
     {
         let logger = Logger(label: "Mist.EncodableWithExtras")
         
-        // encode base properties to JSON
-        let baseData = try JSONEncoder().encode(AnyEncodable(base))
-        guard var merged = try JSONSerialization.jsonObject(with: baseData) as? [String: Any] 
-        else {
-            logger.warning("❌ Base model did not encode to JSON object")
-            throw EncodingError.invalidValue(base, .init(
-                codingPath: encoder.codingPath,
-                debugDescription: "Base model did not encode to JSON object"
-            ))
+        let json = try JSONEncoder().encode(AnyEncodable(base))
+        guard var dict = try JSONSerialization.jsonObject(with: json) as? [String: Any] 
+        else { throw EncodingError.invalidValue(base, EncodingError.Context(
+                    codingPath: encoder.codingPath,
+                    debugDescription: "Base model did not encode to JSON dictionary"
+                )
+            )
         }
-        logger.warning("📝 Base properties: \(merged.keys.sorted())")
 
-        // merge extra properties (skip individual failures to keep base + other extras)
+        logger.warning("📝 Base properties: \(dict.keys.sorted())")
+
+        // add extra properties to dictionary
         for (key, value) in extras 
         {
             logger.warning("🔄 Processing extra '\(key)' of type \(type(of: value))")
             
-            do {
+
                 switch value 
                 {
                     case is String, is Int, is Double, is Bool:
-                        merged[key] = value
+                        dict[key] = value
                         logger.warning("➕ Added primitive extra '\(key)': \(value)")
                     
                     default:
-                        let extraData = try JSONEncoder().encode(AnyEncodable(value))
+                        guard let extraData = try? JSONEncoder().encode(AnyEncodable(value)),
+                              let decodedExtra = try? JSONSerialization.jsonObject(with: extraData, options: [.allowFragments])
+                        else {
+                            logger.warning("⚠️ Skipping extra '\(key)' - failed to encode")
+                            continue
+                        }
                         logger.warning("   Encoded to \(extraData.count) bytes: \(String(data: extraData, encoding: .utf8) ?? "invalid UTF-8")")
-                        
-                        let decodedExtra = try JSONSerialization.jsonObject(with: extraData, options: [.allowFragments])
-                        merged[key] = decodedExtra
+                        dict[key] = decodedExtra
                         logger.warning("➕ Added complex extra '\(key)': \(decodedExtra)")
                 }
-            } catch {
-                // Skip this extra but continue with base + other extras
-                logger.warning("⚠️ Skipping extra '\(key)' due to error: \(error)")
-            }
         }
         
-        logger.warning("📋 Final merged properties: \(merged.keys.sorted())")
+        logger.warning("📋 Final properties: \(dict.keys.sorted())")
         
-        // Pretty print merged for debugging
-        if let prettyData = try? JSONSerialization.data(withJSONObject: merged, options: [.prettyPrinted, .sortedKeys]),
+        // Pretty print for debugging
+        if let prettyData = try? JSONSerialization.data(withJSONObject: dict, options: [.prettyPrinted, .sortedKeys]),
            let prettyString = String(data: prettyData, encoding: .utf8) {
-            logger.warning("🎨 Merged JSON:\n\(prettyString)")
+            logger.warning("🎨 Final JSON:\n\(prettyString)")
         }
 
-        // Step 3: Encode merged result back to parent encoder
+        // encode dictionary back to parent encoder
         var container = encoder.container(keyedBy: StringCodingKey.self)
-        for (key, value) in merged {
+        for (key, value) in dict {
             try container.encode(AnyEncodable(value), forKey: StringCodingKey(key))
         }
     }
