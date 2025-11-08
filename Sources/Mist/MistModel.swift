@@ -32,25 +32,89 @@ public extension Mist.Model {
 
 }
 
-// Wrapper that combines a model and its context extras
-fileprivate struct EncodableWithExtras: Encodable {
+// MARK: - Universal AnyEncodable wrapper
+fileprivate struct AnyEncodable: Encodable {
+    private let value: Any
 
+    init(_ value: Any) {
+        self.value = value
+    }
+
+    func encode(to encoder: Encoder) throws {
+        switch value {
+        case let v as Encodable:
+            try v.encode(to: encoder)
+
+        case let v as [String: Any]:
+            var container = encoder.container(keyedBy: StringCodingKey.self)
+            for (key, val) in v {
+                try container.encode(AnyEncodable(val), forKey: StringCodingKey(key))
+            }
+
+        case let v as [Any]:
+            var container = encoder.unkeyedContainer()
+            for val in v {
+                try container.encode(AnyEncodable(val))
+            }
+
+        case let v as String:
+            var container = encoder.singleValueContainer()
+            try container.encode(v)
+
+        case let v as Int:
+            var container = encoder.singleValueContainer()
+            try container.encode(v)
+
+        case let v as Double:
+            var container = encoder.singleValueContainer()
+            try container.encode(v)
+
+        case let v as Bool:
+            var container = encoder.singleValueContainer()
+            try container.encode(v)
+
+        case is NSNull:
+            var container = encoder.singleValueContainer()
+            try container.encodeNil()
+
+        default:
+            let context = EncodingError.Context(
+                codingPath: encoder.codingPath,
+                debugDescription: "Unsupported value type: \(type(of: value))"
+            )
+            throw EncodingError.invalidValue(value, context)
+        }
+    }
+}
+
+// MARK: - EncodableWithExtras
+fileprivate struct EncodableWithExtras: Encodable {
     let base: any Encodable
     let extras: [String: any Encodable]
 
     func encode(to encoder: Encoder) throws {
-        // 1) encode base model into same encoder (this writes stored fields)
-        try base.encode(to: encoder)
+        // Step 1: Encode base to JSON
+        let baseData = try JSONEncoder().encode(AnyEncodable(base))
+        guard var merged = try JSONSerialization.jsonObject(with: baseData) as? [String: Any] else {
+            throw EncodingError.invalidValue(base, .init(
+                codingPath: encoder.codingPath,
+                debugDescription: "Base model did not encode to JSON object"
+            ))
+        }
 
-        // 2) then encode extras into same nested encoder under string keys
-        if !extras.isEmpty {
-            var container = encoder.container(keyedBy: StringCodingKey.self)
-            for (k, v) in extras {
-                try container.encode(v, forKey: StringCodingKey(k))
-            }
+        // Step 2: Merge extras (override if keys collide)
+        for (key, value) in extras {
+            let extraData = try JSONEncoder().encode(AnyEncodable(value))
+            let decodedExtra = try JSONSerialization.jsonObject(with: extraData)
+            merged[key] = decodedExtra
+        }
+
+        // Step 3: Encode merged result back to parent encoder
+        var container = encoder.container(keyedBy: StringCodingKey.self)
+        for (key, value) in merged {
+            try container.encode(AnyEncodable(value), forKey: StringCodingKey(key))
         }
     }
-
 }
 
 // container to hold model instances for rendering
