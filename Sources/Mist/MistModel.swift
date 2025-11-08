@@ -170,20 +170,30 @@ public struct ModelContainer: Encodable {
     }
     
     // flattens the models dictionary when encoding, making properties directly accessible in template
-    public func encode(to encoder: Encoder) throws {
+    public func encode(to encoder: Encoder) throws
+    {
         let logger = Logger(label: "Mist.ModelContainer")
         
         var container = encoder.container(keyedBy: StringCodingKey.self)
         
-        for (key, value) in models {
+        for (key, value) in models
+        {
             // Get extras from the model via protocol method
             let extras = value.contextExtras()
             
-            logger.warning("🔑 Encoding model '\(key)' (type: \(type(of: value))) with \(extras.count) extras: \(extras.keys.sorted())")
-            
-            // Wrap base value together with extras so both get encoded inside the same nested object.
-            let wrapper = EncodableWithExtras(base: value, extras: extras)
-            try container.encode(wrapper, forKey: StringCodingKey(key))
+            if extras.isEmpty
+            {
+                // direct encoding
+                logger.warning("🔑 Encoding model '\(key)' (type: \(type(of: value)) without extras)")
+                try container.encode(value, forKey: StringCodingKey(key))
+            }
+            else
+            {
+                // merge extras
+                logger.warning("🔑 Encoding model '\(key)' (type: \(type(of: value))) with \(extras.count) extras: \(extras.keys.sorted())")
+                let wrapper = EncodableWithExtras(base: value, extras: extras)
+                try container.encode(wrapper, forKey: StringCodingKey(key))
+            }
         }
     }
     
