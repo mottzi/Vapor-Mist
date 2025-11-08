@@ -110,10 +110,19 @@ fileprivate struct EncodableWithExtras: Encodable {
 
         // Step 2: Merge extras (override if keys collide)
         for (key, value) in extras {
-            let extraData = try JSONEncoder().encode(AnyEncodable(value))
-            let decodedExtra = try JSONSerialization.jsonObject(with: extraData)
-            merged[key] = decodedExtra
-            logger.warning("➕ Added extra '\(key)': \(decodedExtra)")
+            logger.warning("🔄 Processing extra '\(key)' of type \(type(of: value))")
+            
+            do {
+                let extraData = try JSONEncoder().encode(AnyEncodable(value))
+                logger.warning("   Encoded to \(extraData.count) bytes: \(String(data: extraData, encoding: .utf8) ?? "invalid UTF-8")")
+                
+                let decodedExtra = try JSONSerialization.jsonObject(with: extraData, options: [.allowFragments])
+                merged[key] = decodedExtra
+                logger.warning("➕ Added extra '\(key)': \(decodedExtra)")
+            } catch {
+                logger.warning("❌ Failed to process extra '\(key)': \(error)")
+                throw error
+            }
         }
         
         logger.warning("📋 Final merged properties: \(merged.keys.sorted())")
