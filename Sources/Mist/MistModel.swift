@@ -33,21 +33,6 @@ public extension Mist.Model {
 
 }
 
-// Type-erased encodable wrapper
-private struct AnyEncodable: Encodable {
-    
-    private let _encode: (Encoder) throws -> Void
-    
-    init(_ encodable: any Encodable) {
-        _encode = encodable.encode(to:)
-    }
-    
-    func encode(to encoder: Encoder) throws {
-        try _encode(encoder)
-    }
-    
-}
-
 // Wrapper that combines a model and its context extras
 private struct ModelWithExtras: Encodable {
     
@@ -56,98 +41,51 @@ private struct ModelWithExtras: Encodable {
     
     func encode(to encoder: Encoder) throws {
         let logger = Logger(label: "Mist")
-        var container = encoder.container(keyedBy: DynamicCodingKey.self)
         
-        // First, capture the model's encoded representation
-        let modelEncoder = DictionaryEncoder()
-        try model.encode(to: modelEncoder)
+        // Encode model to JSON, decode to dict, merge extras, then re-encode
+        let jsonEncoder = JSONEncoder()
+        let modelData = try jsonEncoder.encode(model)
         
-        // Encode model properties
-        for (key, value) in modelEncoder.data {
-            let codingKey = DynamicCodingKey(stringValue: key)
-            try container.encode(AnyEncodable(value), forKey: codingKey)
+        guard var modelDict = try JSONSerialization.jsonObject(with: modelData) as? [String: Any] else {
+            throw EncodingError.invalidValue(model, EncodingError.Context(
+                codingPath: encoder.codingPath,
+                debugDescription: "Model did not encode to dictionary"
+            ))
         }
         
-        // Encode extras
+        // Merge extras
         for (key, value) in extras {
-            let codingKey = DynamicCodingKey(stringValue: key)
-            try container.encode(AnyEncodable(value), forKey: codingKey)
+            let valueData = try jsonEncoder.encode(value)
+            let jsonValue = try JSONSerialization.jsonObject(with: valueData)
+            modelDict[key] = jsonValue
         }
         
-        // Log the final structure
-        let allKeys = modelEncoder.data.keys.sorted() + extras.keys.sorted()
-        logger.warning("[\(type(of: model))] Encoded with properties: \(allKeys.joined(separator: ", "))")
+        // Log result
+        logger.warning("[\(type(of: model))] Encoded with properties: \(modelDict.keys.sorted().joined(separator: ", "))")
+        
+        // Encode merged dictionary
+        var container = encoder.container(keyedBy: StringCodingKey.self)
+        for (key, value) in modelDict {
+            try encodeAnyValue(value, forKey: StringCodingKey(key), in: &container)
+        }
     }
     
-}
-
-// Custom encoder that captures key-value pairs
-private class DictionaryEncoder: Encoder {
-    
-    var data: [String: any Encodable] = [:]
-    var codingPath: [CodingKey] = []
-    var userInfo: [CodingUserInfoKey: Any] = [:]
-    
-    func container<Key: CodingKey>(keyedBy type: Key.Type) -> KeyedEncodingContainer<Key> {
-        let container = DictionaryKeyedEncodingContainer<Key>(encoder: self)
-        return KeyedEncodingContainer(container)
-    }
-    
-    func unkeyedContainer() -> UnkeyedEncodingContainer {
-        fatalError("Unkeyed encoding not supported")
-    }
-    
-    func singleValueContainer() -> SingleValueEncodingContainer {
-        fatalError("Single value encoding not supported")
-    }
-    
-}
-
-private struct DictionaryKeyedEncodingContainer<Key: CodingKey>: KeyedEncodingContainerProtocol {
-    
-    let encoder: DictionaryEncoder
-    var codingPath: [CodingKey] = []
-    
-    mutating func encodeNil(forKey key: Key) throws {
-        // Skip nil values
-    }
-    
-    mutating func encode<T: Encodable>(_ value: T, forKey key: Key) throws {
-        encoder.data[key.stringValue] = value
-    }
-    
-    mutating func nestedContainer<NestedKey: CodingKey>(keyedBy keyType: NestedKey.Type, forKey key: Key) -> KeyedEncodingContainer<NestedKey> {
-        fatalError("Nested encoding not supported")
-    }
-    
-    mutating func nestedUnkeyedContainer(forKey key: Key) -> UnkeyedEncodingContainer {
-        fatalError("Nested encoding not supported")
-    }
-    
-    mutating func superEncoder() -> Encoder {
-        fatalError("Super encoder not supported")
-    }
-    
-    mutating func superEncoder(forKey key: Key) -> Encoder {
-        fatalError("Super encoder not supported")
-    }
-    
-}
-
-// Dynamic coding key
-private struct DynamicCodingKey: CodingKey {
-    
-    var stringValue: String
-    var intValue: Int?
-    
-    init(stringValue: String) {
-        self.stringValue = stringValue
-        self.intValue = nil
-    }
-    
-    init?(intValue: Int) {
-        self.stringValue = String(intValue)
-        self.intValue = intValue
+    private func encodeAnyValue(_ value: Any, forKey key: StringCodingKey, in container: inout KeyedEncodingContainer<StringCodingKey>) throws {
+        switch value {
+        case let string as String:
+            try container.encode(string, forKey: key)
+        case let int as Int:
+            try container.encode(int, forKey: key)
+        case let double as Double:
+            try container.encode(double, forKey: key)
+        case let bool as Bool:
+            try container.encode(bool, forKey: key)
+        case is NSNull:
+            try container.encodeNil(forKey: key)
+        default:
+            // Fallback to string representation
+            try container.encode(String(describing: value), forKey: key)
+        }
     }
     
 }
