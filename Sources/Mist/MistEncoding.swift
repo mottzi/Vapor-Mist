@@ -3,6 +3,8 @@ import Fluent
 
 struct MergingEncoder: Encodable
 {
+    private static let jsonEncoder = JSONEncoder()
+    
     let base: any Encodable
     let extras: [String: any Encodable]
 
@@ -10,7 +12,7 @@ struct MergingEncoder: Encodable
 
     func encode(to encoder: Encoder) throws
     {
-        let json = try JSONEncoder().encode(AnyEncodable(base))
+        let json = try Self.jsonEncoder.encode(base)
         guard var dict = try JSONSerialization.jsonObject(with: json) as? [String: Any] 
         else { throw EncodingError.invalidValue(base, EncodingError.Context(
                     codingPath: encoder.codingPath,
@@ -53,7 +55,7 @@ struct MergingEncoder: Encodable
 
     func encodeOther(key: String, value: Any, into dict: inout [String: Any])
     {
-        guard let extraData = try? JSONEncoder().encode(AnyEncodable(value)),
+        guard let extraData = try? Self.jsonEncoder.encode(AnyEncodable(value)),
               let decodedExtra = try? JSONSerialization.jsonObject(with: extraData, options: [.allowFragments])
         else { return logger.warning("⚠️ Skipping complex extra '\(key)' - failed to encode") }
         dict[key] = decodedExtra
