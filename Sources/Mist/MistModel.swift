@@ -4,8 +4,6 @@ import Logging
 
 public protocol Model: Fluent.Model where IDValue == UUID {
     
-    /// Override to add dynamic fields for template context
-    /// - Returns: A dictionary of additional key-value pairs to expose in Leaf templates
     func contextExtras() -> [String: any Encodable]
     
 }
@@ -26,118 +24,119 @@ public extension Mist.Model {
         }
     }
     
-    /// Default implementation returns empty dictionary
     func contextExtras() -> [String: any Encodable] {
         return [:]
     }
 
 }
 
-// MARK: - Universal AnyEncodable wrapper
-fileprivate struct AnyEncodable: Encodable {
+private struct AnyEncodable: Encodable
+{
     private let value: Any
 
-    init(_ value: Any) {
-        self.value = value
+    func encode(to encoder: Encoder) throws 
+    {
+        switch value 
+        {
+            case let value as String: try encodePrimitive(value, to: encoder)
+            case let value as Bool: try encodePrimitive(value, to: encoder)
+            case let value as Int: try encodePrimitive(value, to: encoder)
+            case let value as Double: try encodePrimitive(value, to: encoder)
+        
+            case is NSNull: try encodeNil(to: encoder)
+            case let value as [Any]: try encodeArray(value, to: encoder)
+            case let value as [String: Any]: try encodeDictionary(value, to: encoder)
+            case let value as any Encodable: try value.encode(to: encoder)
+
+            default: throw EncodingError.invalidValue(value, EncodingError.Context(
+                    codingPath: encoder.codingPath, 
+                    debugDescription: "Unsupported value type: \(type(of: value))"
+                )
+            )
+        }
     }
 
-    func encode(to encoder: Encoder) throws {
-        switch value {
-        case is NSNull:
-            var container = encoder.singleValueContainer()
-            try container.encodeNil()
+    init(_ value: Any)
+    {
+        self.value = value
+    }
+}
 
-        case let v as String:
-            var container = encoder.singleValueContainer()
-            try container.encode(v)
+private extension AnyEncodable 
+{
+    func encodePrimitive<T: Encodable>(_ value: T, to encoder: Encoder) throws 
+    {
+        var container = encoder.singleValueContainer()
+        try container.encode(value)
+    }
 
-        case let v as Bool:
-            var container = encoder.singleValueContainer()
-            try container.encode(v)
+    func encodeNil(to encoder: Encoder) throws
+    {
+        var container = encoder.singleValueContainer()
+        try container.encodeNil()
+    }
 
-        case let v as Int:
-            var container = encoder.singleValueContainer()
-            try container.encode(v)
+    func encodeArray(_ array: [Any], to encoder: Encoder) throws 
+    {
+        var container = encoder.unkeyedContainer()
+        for item in array {
+            try container.encode(AnyEncodable(item))
+        }
+    }
 
-        case let v as Double:
-            var container = encoder.singleValueContainer()
-            try container.encode(v)
-
-        case let v as [String: Any]:
-            var container = encoder.container(keyedBy: StringCodingKey.self)
-            for (key, val) in v {
-                try container.encode(AnyEncodable(val), forKey: StringCodingKey(key))
-            }
-
-        case let v as [Any]:
-            var container = encoder.unkeyedContainer()
-            for val in v {
-                try container.encode(AnyEncodable(val))
-            }
-
-        case let encodable as any Encodable:
-            // Handle any other Encodable type
-            try encodable.encode(to: encoder)
-
-        default:
-            let context = EncodingError.Context(
-                codingPath: encoder.codingPath,
-                debugDescription: "Unsupported value type: \(type(of: value))"
-            )
-            throw EncodingError.invalidValue(value, context)
+    func encodeDictionary(_ dict: [String: Any], to encoder: Encoder) throws 
+    {
+        var container = encoder.container(keyedBy: StringCodingKey.self)
+        for (key, value) in dict {
+            try container.encode(AnyEncodable(value), forKey: StringCodingKey(key))
         }
     }
 }
 
-// MARK: - EncodableWithExtras
-fileprivate struct EncodableWithExtras: Encodable {
+private struct EncodableWithExtras: Encodable
+{
     let base: any Encodable
     let extras: [String: any Encodable]
 
-    func encode(to encoder: Encoder) throws {
+    func encode(to encoder: Encoder) throws
+    {
         let logger = Logger(label: "Mist.EncodableWithExtras")
         
-        // Step 1: Encode base to JSON
+        // encode base properties to JSON
         let baseData = try JSONEncoder().encode(AnyEncodable(base))
-        guard var merged = try JSONSerialization.jsonObject(with: baseData) as? [String: Any] else {
+        guard var merged = try JSONSerialization.jsonObject(with: baseData) as? [String: Any] 
+        else {
+            logger.warning("❌ Base model did not encode to JSON object")
             throw EncodingError.invalidValue(base, .init(
                 codingPath: encoder.codingPath,
                 debugDescription: "Base model did not encode to JSON object"
             ))
         }
-        
         logger.warning("📝 Base properties: \(merged.keys.sorted())")
 
-        // Step 2: Merge extras (override if keys collide)
-        for (key, value) in extras {
+        // merge extra properties (skip individual failures to keep base + other extras)
+        for (key, value) in extras 
+        {
             logger.warning("🔄 Processing extra '\(key)' of type \(type(of: value))")
             
-            // For simple types, just add them directly without JSON round-tripping
-            if let string = value as? String {
-                merged[key] = string
-                logger.warning("➕ Added string extra '\(key)': \(string)")
-            } else if let int = value as? Int {
-                merged[key] = int
-                logger.warning("➕ Added int extra '\(key)': \(int)")
-            } else if let double = value as? Double {
-                merged[key] = double
-                logger.warning("➕ Added double extra '\(key)': \(double)")
-            } else if let bool = value as? Bool {
-                merged[key] = bool
-                logger.warning("➕ Added bool extra '\(key)': \(bool)")
-            } else {
-                // For complex types, use JSON round-trip
-                do {
-                    let extraData = try JSONEncoder().encode(AnyEncodable(value))
-                    logger.warning("   Encoded to \(extraData.count) bytes: \(String(data: extraData, encoding: .utf8) ?? "invalid UTF-8")")
+            do {
+                switch value 
+                {
+                    case is String, is Int, is Double, is Bool:
+                        merged[key] = value
+                        logger.warning("➕ Added primitive extra '\(key)': \(value)")
                     
-                    let decodedExtra = try JSONSerialization.jsonObject(with: extraData, options: [.allowFragments])
-                    merged[key] = decodedExtra
-                    logger.warning("➕ Added complex extra '\(key)': \(decodedExtra)")
-                } catch {
-                    logger.warning("❌ Failed to process extra '\(key)': \(error)")
-                    throw error
+                    default:
+                        let extraData = try JSONEncoder().encode(AnyEncodable(value))
+                        logger.warning("   Encoded to \(extraData.count) bytes: \(String(data: extraData, encoding: .utf8) ?? "invalid UTF-8")")
+                        
+                        let decodedExtra = try JSONSerialization.jsonObject(with: extraData, options: [.allowFragments])
+                        merged[key] = decodedExtra
+                        logger.warning("➕ Added complex extra '\(key)': \(decodedExtra)")
                 }
+            } catch {
+                // Skip this extra but continue with base + other extras
+                logger.warning("⚠️ Skipping extra '\(key)' due to error: \(error)")
             }
         }
         
