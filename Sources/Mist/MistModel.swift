@@ -42,34 +42,83 @@ private struct ModelWithExtras: Encodable {
     func encode(to encoder: Encoder) throws {
         let logger = Logger(label: "Mist")
         
-        // Log what we're about to encode
         logger.warning("ModelWithExtras.encode: Starting to encode model type: \(type(of: model))")
         logger.warning("ModelWithExtras.encode: Extras to add: \(extras.keys.sorted().joined(separator: ", "))")
         
-        // Create a test JSON encoder to capture base model structure
-        let testEncoder = JSONEncoder()
-        testEncoder.outputFormatting = .prettyPrinted
-        if let baseData = try? testEncoder.encode(model),
-           let baseJSON = String(data: baseData, encoding: .utf8) {
-            logger.warning("ModelWithExtras.encode: Base model JSON:\n\(baseJSON)")
+        // Step 1: Encode model to JSON
+        let jsonEncoder = JSONEncoder()
+        guard let modelData = try? jsonEncoder.encode(model) else {
+            logger.warning("ModelWithExtras.encode: Failed to encode model to JSON")
+            throw EncodingError.invalidValue(model, EncodingError.Context(
+                codingPath: encoder.codingPath,
+                debugDescription: "Failed to encode model"
+            ))
         }
         
-        // First encode the base model's properties
-        try model.encode(to: encoder)
-        logger.warning("ModelWithExtras.encode: Base model encoded")
+        // Step 2: Decode JSON to dictionary
+        guard let modelDict = try? JSONSerialization.jsonObject(with: modelData) as? [String: Any] else {
+            logger.warning("ModelWithExtras.encode: Failed to decode model JSON to dictionary")
+            throw EncodingError.invalidValue(model, EncodingError.Context(
+                codingPath: encoder.codingPath,
+                debugDescription: "Failed to decode model JSON"
+            ))
+        }
         
-        // Then encode extras into the same container
-        if !extras.isEmpty {
-            var container = encoder.container(keyedBy: StringCodingKey.self)
-            for (key, value) in extras.sorted(by: { $0.key < $1.key }) {
-                logger.warning("ModelWithExtras.encode: Adding extra '\(key)' with value: \(value)")
-                try container.encode(value, forKey: StringCodingKey(key))
-                logger.warning("ModelWithExtras.encode: Extra '\(key)' successfully added")
+        logger.warning("ModelWithExtras.encode: Model has \(modelDict.count) base properties")
+        
+        // Step 3: Merge extras into dictionary
+        var mergedDict = modelDict
+        for (key, value) in extras {
+            logger.warning("ModelWithExtras.encode: Adding extra '\(key)' = \(value)")
+            
+            // Encode the extra value to JSON to get its Any representation
+            if let extraData = try? jsonEncoder.encode(value),
+               let extraValue = try? JSONSerialization.jsonObject(with: extraData) {
+                mergedDict[key] = extraValue
+                logger.warning("ModelWithExtras.encode: Extra '\(key)' added successfully")
             }
-            logger.warning("ModelWithExtras.encode: All extras encoded")
         }
         
-        logger.warning("ModelWithExtras.encode: Completed encoding")
+        logger.warning("ModelWithExtras.encode: Final merged dict has \(mergedDict.count) properties")
+        
+        // Step 4: Pretty print the merged structure
+        if let finalData = try? JSONSerialization.data(withJSONObject: mergedDict, options: .prettyPrinted),
+           let finalJSON = String(data: finalData, encoding: .utf8) {
+            logger.warning("ModelWithExtras.encode: Merged structure:\n\(finalJSON)")
+        }
+        
+        // Step 5: Encode merged dictionary
+        var container = encoder.container(keyedBy: StringCodingKey.self)
+        for (key, value) in mergedDict {
+            try encodeAny(value, forKey: key, in: &container)
+        }
+        
+        logger.warning("ModelWithExtras.encode: Encoding completed")
+    }
+    
+    // Helper to encode Any values
+    private func encodeAny(_ value: Any, forKey key: String, in container: inout KeyedEncodingContainer<StringCodingKey>) throws {
+        let codingKey = StringCodingKey(key)
+        
+        if let string = value as? String {
+            try container.encode(string, forKey: codingKey)
+        } else if let int = value as? Int {
+            try container.encode(int, forKey: codingKey)
+        } else if let double = value as? Double {
+            try container.encode(double, forKey: codingKey)
+        } else if let bool = value as? Bool {
+            try container.encode(bool, forKey: codingKey)
+        } else if let array = value as? [Any] {
+            // For arrays, we'd need more complex handling
+            try container.encode(String(describing: array), forKey: codingKey)
+        } else if let dict = value as? [String: Any] {
+            // For nested objects, we'd need more complex handling
+            try container.encode(String(describing: dict), forKey: codingKey)
+        } else if value is NSNull {
+            try container.encodeNil(forKey: codingKey)
+        } else {
+            try container.encode(String(describing: value), forKey: codingKey)
+        }
     }
     
 }
