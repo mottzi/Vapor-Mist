@@ -31,8 +31,8 @@ public extension Mist.Model {
 // container to hold model instances for rendering
 public struct ModelContainer: Encodable {
     
-    // store encodable model data keyed by lowercase model type name
-    private var models: [String: any Encodable] = [:]
+    // store model instances keyed by lowercase model type name
+    private var models: [String: any Mist.Model] = [:]
     
     var isEmpty: Bool {
         return models.isEmpty
@@ -50,29 +50,24 @@ public struct ModelContainer: Encodable {
         
         logger.warning("ModelContainer.encode: Starting encoding for \(models.count) models")
         
-        for (key, value) in models {
-            logger.warning("ModelContainer.encode: Encoding model with key '\(key)'")
+        for (key, model) in models {
+            logger.warning("ModelContainer.encode: Encoding model with key '\(key)' (type: \(type(of: model)))")
             
             // First encode the base model
-            try container.encode(value, forKey: StringCodingKey(key))
+            try container.encode(model, forKey: StringCodingKey(key))
             logger.warning("ModelContainer.encode: Base model '\(key)' encoded successfully")
             
-            // Then encode extras if the model provides them
-            if let model = value as? any Mist.Model {
-                logger.warning("ModelContainer.encode: Model '\(key)' is a Mist.Model, checking for extras")
-                let extras = model.contextExtras()
-                logger.warning("ModelContainer.encode: Model '\(key)' returned \(extras.count) extras: \(extras.keys.joined(separator: ", "))")
-                
-                if !extras.isEmpty {
-                    var sub = container.nestedContainer(keyedBy: StringCodingKey.self, forKey: StringCodingKey(key))
-                    for (extraKey, extraValue) in extras {
-                        logger.warning("ModelContainer.encode: Encoding extra '\(extraKey)' for model '\(key)'")
-                        try sub.encode(extraValue, forKey: StringCodingKey(extraKey))
-                        logger.warning("ModelContainer.encode: Extra '\(extraKey)' encoded successfully")
-                    }
+            // Then encode extras from contextExtras()
+            let extras = model.contextExtras()
+            logger.warning("ModelContainer.encode: Model '\(key)' returned \(extras.count) extras: \(extras.keys.joined(separator: ", "))")
+            
+            if !extras.isEmpty {
+                var sub = container.nestedContainer(keyedBy: StringCodingKey.self, forKey: StringCodingKey(key))
+                for (extraKey, extraValue) in extras {
+                    logger.warning("ModelContainer.encode: Encoding extra '\(extraKey)' for model '\(key)'")
+                    try sub.encode(extraValue, forKey: StringCodingKey(extraKey))
+                    logger.warning("ModelContainer.encode: Extra '\(extraKey)' encoded successfully")
                 }
-            } else {
-                logger.warning("ModelContainer.encode: Model '\(key)' is NOT a Mist.Model (type: \(type(of: value)))")
             }
         }
         
