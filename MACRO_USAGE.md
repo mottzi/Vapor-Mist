@@ -4,6 +4,8 @@
 
 Mist provides Swift macros to automatically generate `contextExtras()` implementations for your models. This eliminates boilerplate and makes it trivial to add computed properties to your template contexts.
 
+The `@ExtraContext` attribute is a marker macro that works with `@ExtraContextProvider` to identify which computed properties should be included in the template context.
+
 ## Requirements
 
 - Swift 6.0+
@@ -195,6 +197,10 @@ final class BlogPost: Model {
 - Don't make network requests
 - Don't access relationships unless they're eager-loaded
 - Don't perform expensive computations
+
+### Note on Property Wrappers
+
+`@ExtraContext` is **not** a property wrapper - it's an attribute macro that serves as a marker. You can use it on computed properties without any special syntax. The macro simply identifies which properties to include in `contextExtras()`.
 
 ## Migration from Manual `contextExtras()`
 

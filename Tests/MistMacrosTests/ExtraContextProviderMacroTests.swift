@@ -11,6 +11,7 @@ final class ExtraContextProviderMacroTests: XCTestCase {
 
     let testMacros: [String: Macro.Type] = [
         "ExtraContextProvider": ExtraContextProviderMacro.self,
+        "ExtraContext": ExtraContextMacro.self,
     ]
     
     func testMacroWithSingleExtraProperty() throws {

@@ -1,8 +1,8 @@
 import Foundation
 
-/// Property wrapper for marking computed properties that should be included in contextExtras()
+/// Marks a computed property to be included in contextExtras()
 ///
-/// Use this wrapper on computed properties in models that have @ExtraContextProvider applied.
+/// Use this attribute on computed properties in models that have @ExtraContextProvider applied.
 /// The macro will automatically collect these properties and include them in the generated
 /// contextExtras() method.
 ///
@@ -23,18 +23,6 @@ import Foundation
 ///     }
 /// }
 /// ```
-@propertyWrapper
-public struct ExtraContext<Value: Encodable> {
-
-    private let computation: () -> Value
-    
-    public init(wrappedValue: @autoclosure @escaping () -> Value) {
-        self.computation = wrappedValue
-    }
-    
-    public var wrappedValue: Value {
-        computation()
-    }
-
-}
+@attached(peer)
+public macro ExtraContext() = #externalMacro(module: "MistMacros", type: "ExtraContextMacro")
 
