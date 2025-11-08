@@ -33,6 +33,47 @@ public extension Mist.Model {
 
 }
 
+// Wrapper that combines a model and its context extras
+private struct ModelWithExtras: Encodable {
+    
+    let model: any Mist.Model
+    let extras: [String: any Encodable]
+    
+    func encode(to encoder: Encoder) throws {
+        let logger = Logger(label: "Mist")
+        
+        // Log what we're about to encode
+        logger.warning("ModelWithExtras.encode: Starting to encode model type: \(type(of: model))")
+        logger.warning("ModelWithExtras.encode: Extras to add: \(extras.keys.sorted().joined(separator: ", "))")
+        
+        // Create a test JSON encoder to capture base model structure
+        let testEncoder = JSONEncoder()
+        testEncoder.outputFormatting = .prettyPrinted
+        if let baseData = try? testEncoder.encode(model),
+           let baseJSON = String(data: baseData, encoding: .utf8) {
+            logger.warning("ModelWithExtras.encode: Base model JSON:\n\(baseJSON)")
+        }
+        
+        // First encode the base model's properties
+        try model.encode(to: encoder)
+        logger.warning("ModelWithExtras.encode: Base model encoded")
+        
+        // Then encode extras into the same container
+        if !extras.isEmpty {
+            var container = encoder.container(keyedBy: StringCodingKey.self)
+            for (key, value) in extras.sorted(by: { $0.key < $1.key }) {
+                logger.warning("ModelWithExtras.encode: Adding extra '\(key)' with value: \(value)")
+                try container.encode(value, forKey: StringCodingKey(key))
+                logger.warning("ModelWithExtras.encode: Extra '\(key)' successfully added")
+            }
+            logger.warning("ModelWithExtras.encode: All extras encoded")
+        }
+        
+        logger.warning("ModelWithExtras.encode: Completed encoding")
+    }
+    
+}
+
 // container to hold model instances for rendering
 public struct ModelContainer: Encodable {
     
@@ -55,28 +96,38 @@ public struct ModelContainer: Encodable {
         
         logger.warning("ModelContainer.encode: Starting encoding for \(models.count) models")
         
-        for (key, model) in models {
-            logger.warning("ModelContainer.encode: Encoding model with key '\(key)' (type: \(type(of: model)))")
+        for (key, model) in models.sorted(by: { $0.key < $1.key }) {
+            logger.warning("ModelContainer.encode: ═══════════════════════════════════")
+            logger.warning("ModelContainer.encode: Processing model key: '\(key)'")
+            logger.warning("ModelContainer.encode: Model type: \(type(of: model))")
             
-            // First encode the base model
-            try container.encode(model, forKey: StringCodingKey(key))
-            logger.warning("ModelContainer.encode: Base model '\(key)' encoded successfully")
-            
-            // Then encode extras from contextExtras()
+            // Get extras from the model
             let extras = model.contextExtras()
-            logger.warning("ModelContainer.encode: Model '\(key)' returned \(extras.count) extras: \(extras.keys.joined(separator: ", "))")
-            
+            logger.warning("ModelContainer.encode: Context extras count: \(extras.count)")
             if !extras.isEmpty {
-                var sub = container.nestedContainer(keyedBy: StringCodingKey.self, forKey: StringCodingKey(key))
-                for (extraKey, extraValue) in extras {
-                    logger.warning("ModelContainer.encode: Encoding extra '\(extraKey)' for model '\(key)'")
-                    try sub.encode(extraValue, forKey: StringCodingKey(extraKey))
-                    logger.warning("ModelContainer.encode: Extra '\(extraKey)' encoded successfully")
+                logger.warning("ModelContainer.encode: Extra keys: [\(extras.keys.sorted().joined(separator: ", "))]")
+                for (extraKey, extraValue) in extras.sorted(by: { $0.key < $1.key }) {
+                    logger.warning("ModelContainer.encode:   - \(extraKey): \(extraValue)")
                 }
             }
+            
+            // Wrap model with its extras and encode
+            let wrapper = ModelWithExtras(model: model, extras: extras)
+            try container.encode(wrapper, forKey: StringCodingKey(key))
+            
+            // Capture final combined structure
+            let testEncoder = JSONEncoder()
+            testEncoder.outputFormatting = .prettyPrinted
+            if let finalData = try? testEncoder.encode(wrapper),
+               let finalJSON = String(data: finalData, encoding: .utf8) {
+                logger.warning("ModelContainer.encode: Final combined JSON for '\(key)':\n\(finalJSON)")
+            }
+            
+            logger.warning("ModelContainer.encode: Model '\(key)' encoding complete ✓")
         }
         
-        logger.warning("ModelContainer.encode: Encoding completed")
+        logger.warning("ModelContainer.encode: ═══════════════════════════════════")
+        logger.warning("ModelContainer.encode: All models encoded successfully")
     }
     
     public init() {}
@@ -128,3 +179,4 @@ public struct MultipleComponentContext: Encodable {
     }
     
 }
+
