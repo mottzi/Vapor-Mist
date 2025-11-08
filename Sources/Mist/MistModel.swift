@@ -1,5 +1,6 @@
 import Vapor
 import Fluent
+import Logging
 
 public protocol Model: Fluent.Model where IDValue == UUID {
     
@@ -93,6 +94,8 @@ fileprivate struct EncodableWithExtras: Encodable {
     let extras: [String: any Encodable]
 
     func encode(to encoder: Encoder) throws {
+        let logger = Logger(label: "Mist.EncodableWithExtras")
+        
         // Step 1: Encode base to JSON
         let baseData = try JSONEncoder().encode(AnyEncodable(base))
         guard var merged = try JSONSerialization.jsonObject(with: baseData) as? [String: Any] else {
@@ -101,12 +104,23 @@ fileprivate struct EncodableWithExtras: Encodable {
                 debugDescription: "Base model did not encode to JSON object"
             ))
         }
+        
+        logger.warning("📝 Base properties: \(merged.keys.sorted())")
 
         // Step 2: Merge extras (override if keys collide)
         for (key, value) in extras {
             let extraData = try JSONEncoder().encode(AnyEncodable(value))
             let decodedExtra = try JSONSerialization.jsonObject(with: extraData)
             merged[key] = decodedExtra
+            logger.warning("➕ Added extra '\(key)': \(decodedExtra)")
+        }
+        
+        logger.warning("📋 Final merged properties: \(merged.keys.sorted())")
+        
+        // Pretty print merged for debugging
+        if let prettyData = try? JSONSerialization.data(withJSONObject: merged, options: [.prettyPrinted, .sortedKeys]),
+           let prettyString = String(data: prettyData, encoding: .utf8) {
+            logger.warning("🎨 Merged JSON:\n\(prettyString)")
         }
 
         // Step 3: Encode merged result back to parent encoder
@@ -134,11 +148,28 @@ public struct ModelContainer: Encodable {
     
     // flattens the models dictionary when encoding, making properties directly accessible in template
     public func encode(to encoder: Encoder) throws {
+        let logger = Logger(label: "Mist.ModelContainer")
+        
+        // Debug: Log what we're about to encode
+        let jsonEncoder = JSONEncoder()
+        jsonEncoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        
+        do {
+            let debugData = try jsonEncoder.encode(self)
+            if let debugString = String(data: debugData, encoding: .utf8) {
+                logger.warning("📦 ModelContainer encoding:\n\(debugString)")
+            }
+        } catch {
+            logger.warning("⚠️ Failed to generate debug output: \(error)")
+        }
+        
         var container = encoder.container(keyedBy: StringCodingKey.self)
         
         for (key, value) in models {
             // Get extras from the model via protocol method
             let extras = value.contextExtras()
+            
+            logger.warning("🔑 Encoding model '\(key)' with \(extras.count) extras: \(extras.keys.sorted())")
             
             // Wrap base value together with extras so both get encoded inside the same nested object.
             let wrapper = EncodableWithExtras(base: value, extras: extras)
