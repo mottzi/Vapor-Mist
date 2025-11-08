@@ -75,6 +75,10 @@ fileprivate struct AnyEncodable: Encodable {
                 try container.encode(AnyEncodable(val))
             }
 
+        case let encodable as any Encodable:
+            // Handle any other Encodable type
+            try encodable.encode(to: encoder)
+
         default:
             let context = EncodingError.Context(
                 codingPath: encoder.codingPath,
