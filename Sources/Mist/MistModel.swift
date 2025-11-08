@@ -42,30 +42,51 @@ private struct ModelWithExtras: Encodable {
     func encode(to encoder: Encoder) throws {
         let logger = Logger(label: "Mist")
         
-        // Encode model to JSON, decode to dict, merge extras, then re-encode
+        // Step 1: Encode model to JSON
         let jsonEncoder = JSONEncoder()
-        let modelData = try jsonEncoder.encode(model)
-        
-        guard var modelDict = try JSONSerialization.jsonObject(with: modelData) as? [String: Any] else {
+        guard let modelData = try? jsonEncoder.encode(model) else {
             throw EncodingError.invalidValue(model, EncodingError.Context(
                 codingPath: encoder.codingPath,
-                debugDescription: "Model did not encode to dictionary"
+                debugDescription: "Failed to encode model"
             ))
         }
         
-        // Merge extras
+        // Step 2: Decode JSON to dictionary
+        guard let modelDict = try? JSONSerialization.jsonObject(with: modelData) as? [String: Any] else {
+            throw EncodingError.invalidValue(model, EncodingError.Context(
+                codingPath: encoder.codingPath,
+                debugDescription: "Failed to decode model JSON"
+            ))
+        }
+        
+        // Step 3: Merge extras into dictionary
+        var mergedDict = modelDict
         for (key, value) in extras {
-            let valueData = try jsonEncoder.encode(value)
-            let jsonValue = try JSONSerialization.jsonObject(with: valueData)
-            modelDict[key] = jsonValue
+            // Try to encode the extra value to JSON
+            do {
+                let extraData = try jsonEncoder.encode(value)
+                let extraValue = try JSONSerialization.jsonObject(with: extraData)
+                mergedDict[key] = extraValue
+            } catch {
+                // Fallback: use the value directly if it's a basic type
+                if let string = value as? String {
+                    mergedDict[key] = string
+                } else if let int = value as? Int {
+                    mergedDict[key] = int
+                } else if let double = value as? Double {
+                    mergedDict[key] = double
+                } else if let bool = value as? Bool {
+                    mergedDict[key] = bool
+                }
+            }
         }
         
         // Log result
-        logger.warning("[\(type(of: model))] Encoded with properties: \(modelDict.keys.sorted().joined(separator: ", "))")
+        logger.warning("[\(type(of: model))] Encoded with properties: \(mergedDict.keys.sorted().joined(separator: ", "))")
         
-        // Encode merged dictionary
+        // Step 4: Encode merged dictionary
         var container = encoder.container(keyedBy: StringCodingKey.self)
-        for (key, value) in modelDict {
+        for (key, value) in mergedDict {
             try encodeAnyValue(value, forKey: StringCodingKey(key), in: &container)
         }
     }
@@ -83,7 +104,6 @@ private struct ModelWithExtras: Encodable {
         case is NSNull:
             try container.encodeNil(forKey: key)
         default:
-            // Fallback to string representation
             try container.encode(String(describing: value), forKey: key)
         }
     }
