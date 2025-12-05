@@ -1,13 +1,17 @@
 import Vapor
 import Fluent
 
+public typealias MistClients = Clients
+
 public actor Clients
 {
     var clients: [Client] = []
     var componentToClients: [String: Set<UUID>] = [:]
-    let components: Mist.Components
+    var sessionState: [UUID: [String: MistState]] = [:]
     
-    init(components: Mist.Components)
+    let components: Components
+    
+    init(components: Components)
     {
         self.components = components
     }
@@ -24,32 +28,60 @@ extension Clients
     
     func addClient(id: UUID, socket: WebSocket)
     {
-        return clients.append(Client(id: id, socket: socket))
+        clients.append(Client(id: id, socket: socket))
     }
     
     func removeClient(id: UUID)
     {
-        // abort if client not found in registry
         guard let clientIndex = clients.firstIndex(where: { $0.id == id }) else { return }
         
-        // remove client from lookup dictionary
-        let clientSubscriptions = clients[clientIndex].subscriptions
-        for component in clientSubscriptions {
+        for component in clients[clientIndex].subscriptions
+        {
             guard var subscribers = componentToClients[component] else { continue }
             subscribers.remove(id)
             componentToClients[component] = subscribers.isEmpty ? nil : subscribers
         }
         
-        // remove client from registry
         clients.remove(at: clientIndex)
+        sessionState[id] = nil
     }
     
-    func subscribers(of component: String) -> [Client] {
-        // lookup subscriber IDs from lookup dictionary
+    func subscribers(of component: String) -> [Client]
+    {
         guard let subscriberIDs = componentToClients[component] else { return [] }
         return clients.filter { subscriberIDs.contains($0.id) }
     }
+}
+
+extension Clients
+{
+    func state(for clientID: UUID, componentID: String, default defaultState: MistState) -> MistState
+    {
+        return sessionState[clientID]?[componentID] ?? defaultState
+    }
     
+    func setState(_ state: MistState, for clientID: UUID, componentID: String)
+    {
+        var clientState = sessionState[clientID] ?? [:]
+        clientState[componentID] = state
+        sessionState[clientID] = clientState
+    }
+    
+    func clearState(for componentID: String)
+    {
+        let clientIDs = Array(sessionState.keys)
+        for clientID in clientIDs
+        {
+            var state = sessionState[clientID] ?? [:]
+            state.removeValue(forKey: componentID)
+            
+            switch state.isEmpty
+            {
+                case true: sessionState[clientID] = nil
+                case false: sessionState[clientID] = state
+            }
+        }
+    }
 }
 
 extension Clients

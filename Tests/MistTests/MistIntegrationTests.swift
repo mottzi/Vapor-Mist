@@ -117,7 +117,7 @@ final class MistIntegrationTests: XCTestCase
         try await app.autoMigrate()
         
         // configure mist with our test component
-        await app.mist.components.registerComponents([TestComponent()], with: app)
+        await app.mist.use(TestComponent())
         
         // subscription message
         let subscriptionMessage = #"{ "subscribe": { "component": "TestComponent" } }"#
@@ -210,8 +210,8 @@ final class MistIntegrationTests: XCTestCase
                 guard let data = text.data(using: .utf8) else { return await test.fail("Error decoding") }
                 guard let message = try? JSONDecoder().decode(Mist.Message.self, from: data) else { return await test.fail("Error decoding") }
   
-                // verify update message
-                guard case .update(let component, /*_,*/ let id, let html) = message else { return await test.fail("Wrong Mist.Message received") }
+                // verify instance update message
+                guard case .updateInstanceComponent(let component, let id, let html) = message else { return await test.fail("Wrong Mist.Message received") }
                 guard component == "TestComponent" else { return await test.fail("Wrong Component received") }
                 guard id == modelID else { return await test.fail("Wrong model ID received") }
                 
@@ -263,26 +263,24 @@ final class MistIntegrationTests: XCTestCase
     }
 }
     
-struct DumbComp4133: Mist.Component
+struct DumbComp4133: Mist.InstanceComponent
 {
     let models: [any Mist.Model.Type] = [DummyModel1.self, DummyModel2.self]
 }
 
-struct TestComponent: MistTests.TestableComponent
+struct TestComponent: Mist.InstanceComponent
 {
-    
+
     let models: [any Mist.Model.Type] = [DummyModel1.self, DummyModel2.self]
-    
-    func templateStringLiteral(id: UUID) -> String
-    {
+
+    let template: Template = .inline(template:
         """
-        <div mist-component="TestComponent" mist-id="\(id)">
+        <div mist-component="TestComponent" mist-id="#(component.dummymodel1.id)">
             <span>#(component.dummymodel1.id)</span>
             <span>#(component.dummymodel1.text)</span>
             <span>#(component.dummymodel2.text2)</span>
         </div>
-        """
-    }
-    
+        """)
+
 }
 

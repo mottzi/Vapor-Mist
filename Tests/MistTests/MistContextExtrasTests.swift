@@ -22,9 +22,9 @@ final class TestModelWithExtras: Mist.Model, Content, @unchecked Sendable
         self.count = count
     }
     
-    func contextExtras() -> [String: any Encodable]
+    var contextExtras: [String: any Encodable]
     {
-        return [
+        [
             "extraString": "computed value",
             "extraInt": 42,
             "extraArray": ["first", "second", "third"],
@@ -231,7 +231,7 @@ final class MistContextExtrasTests: XCTestCase
                 self.title = title
             }
             
-            func contextExtras() -> [String: any Encodable]
+            var contextExtras: [String: any Encodable]
             {
                 struct NestedData: Encodable
                 {

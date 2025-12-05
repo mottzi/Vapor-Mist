@@ -47,9 +47,9 @@ final class MistComponentsTest: XCTestCase
         await app.mist.components.registerComponents([DummyRow1(), DummyRow2(), DummyRow1()], with: app)
         
         // use model-based component lookup API
-        let model1Components = await app.mist.components.getComponents(using: DummyModel1.self)
-        let model2Components = await app.mist.components.getComponents(using: DummyModel2.self)
-        let model3Components = await app.mist.components.getComponents(using: DummyModel3.self)
+        let model1Components = await app.mist.components.getComponents(usingModel: DummyModel1.self)
+        let model2Components = await app.mist.components.getComponents(usingModel: DummyModel2.self)
+        let model3Components = await app.mist.components.getComponents(usingModel: DummyModel3.self)
 
         // test results of API for first model
         XCTAssertEqual(model1Components.count, 2, "Expected exactly 2 components for DummyModel1")
@@ -77,18 +77,18 @@ final class MistComponentsTest: XCTestCase
         await app.mist.components.registerComponents([DummyRow1(), DummyRow2()], with: app)
         
         // test reverse index lookup for DummyModel1 (used by both components)
-        let model1Components = await app.mist.components.getComponents(using: DummyModel1.self)
+        let model1Components = await app.mist.components.getComponents(usingModel: DummyModel1.self)
         XCTAssertEqual(model1Components.count, 2, "DummyModel1 should map to 2 components")
         XCTAssertTrue(model1Components.contains(where: { $0.name == "DummyRow1" }))
         XCTAssertTrue(model1Components.contains(where: { $0.name == "DummyRow2" }))
         
         // test reverse index lookup for DummyModel2 (used by one component)
-        let model2Components = await app.mist.components.getComponents(using: DummyModel2.self)
+        let model2Components = await app.mist.components.getComponents(usingModel: DummyModel2.self)
         XCTAssertEqual(model2Components.count, 1, "DummyModel2 should map to 1 component")
         XCTAssertEqual(model2Components[0].name, "DummyRow1")
         
         // test non-existent model
-        let model3Components = await app.mist.components.getComponents(using: DummyModel3.self)
+        let model3Components = await app.mist.components.getComponents(usingModel: DummyModel3.self)
         XCTAssertEqual(model3Components.count, 0, "Non-registered model should have no components")
         
         try await app.asyncShutdown()
@@ -142,7 +142,7 @@ final class MistComponentsTest: XCTestCase
         XCTAssertEqual(componentsArray.count, 2, "Should have only 2 components despite duplicate registration")
         
         // verify reverse index matches deduplicated component array
-        let model1Components = await app.mist.components.getComponents(using: DummyModel1.self)
+        let model1Components = await app.mist.components.getComponents(usingModel: DummyModel1.self)
         XCTAssertEqual(model1Components.count, 2, "DummyModel1 should still map to 2 components")
         
         // verify no duplicate entries in reverse index for same component
@@ -227,6 +227,8 @@ final class MistComponentsTest: XCTestCase
             component: "DummyRowWithActions",
             action: "testAction",
             id: modelID,
+            clientID: UUID(),
+            clients: app.mist.clients,
             on: app.db
         )
         
@@ -268,6 +270,8 @@ final class MistComponentsTest: XCTestCase
             component: "DummyRowWithActions",
             action: "testAction",
             id: modelID,
+            clientID: UUID(),
+            clients: app.mist.clients,
             on: app.db
         )
         
@@ -282,6 +286,8 @@ final class MistComponentsTest: XCTestCase
             component: "DummyRowWithActions",
             action: "anotherAction",
             id: modelID,
+            clientID: UUID(),
+            clients: app.mist.clients,
             on: app.db
         )
         
@@ -296,6 +302,8 @@ final class MistComponentsTest: XCTestCase
             component: "DummyRowWithActions",
             action: "failingAction",
             id: modelID,
+            clientID: UUID(),
+            clients: app.mist.clients,
             on: app.db
         )
         
@@ -324,6 +332,8 @@ final class MistComponentsTest: XCTestCase
             component: "NonExistentComponent",
             action: "testAction",
             id: UUID(),
+            clientID: UUID(),
+            clients: app.mist.clients,
             on: app.db
         )
         
@@ -353,6 +363,8 @@ final class MistComponentsTest: XCTestCase
             component: "DummyRowWithActions",
             action: "nonExistentAction",
             id: UUID(),
+            clientID: UUID(),
+            clients: app.mist.clients,
             on: app.db
         )
         
@@ -378,8 +390,8 @@ final class MistComponentsTest: XCTestCase
         await app.mist.components.registerComponents([DummyRow1()], with: app)
         
         // verify both models in reverse index point to same component
-        let model1Components = await app.mist.components.getComponents(using: DummyModel1.self)
-        let model2Components = await app.mist.components.getComponents(using: DummyModel2.self)
+        let model1Components = await app.mist.components.getComponents(usingModel: DummyModel1.self)
+        let model2Components = await app.mist.components.getComponents(usingModel: DummyModel2.self)
         
         XCTAssertEqual(model1Components.count, 1, "DummyModel1 should map to 1 component")
         XCTAssertEqual(model2Components.count, 1, "DummyModel2 should map to 1 component")
@@ -395,17 +407,17 @@ final class MistComponentsTest: XCTestCase
     }
 }
 
-struct DummyRow1: Mist.Component
+struct DummyRow1: Mist.InstanceComponent
 {
     let models: [any Mist.Model.Type] = [DummyModel1.self, DummyModel2.self]
 }
 
-struct DummyRow2: Mist.Component
+struct DummyRow2: Mist.InstanceComponent
 {
     let models: [any Mist.Model.Type] = [DummyModel1.self]
 }
 
-struct DummyRowWithActions: Mist.Component
+struct DummyRowWithActions: Mist.InstanceComponent
 {
     let models: [any Mist.Model.Type] = [DummyModel1.self]
     
@@ -423,7 +435,7 @@ struct TestAction: Action
 {
     let name: String = "testAction"
     
-    func perform(id: UUID, on db: Database) async -> ActionResult
+    func perform(id: UUID?, state: inout MistState, on db: Database) async -> ActionResult
     {
         return .success()
     }
@@ -433,7 +445,7 @@ struct AnotherAction: Action
 {
     let name: String = "anotherAction"
     
-    func perform(id: UUID, on db: Database) async -> ActionResult
+    func perform(id: UUID?, state: inout MistState, on db: Database) async -> ActionResult
     {
         return .success(message: "Custom success message")
     }
@@ -443,7 +455,7 @@ struct FailingAction: Action
 {
     let name: String = "failingAction"
     
-    func perform(id: UUID, on db: Database) async -> ActionResult
+    func perform(id: UUID?, state: inout MistState, on db: Database) async -> ActionResult
     {
         return .failure(message: "This action always fails")
     }

@@ -6,7 +6,7 @@ import Leaf
 import FluentSQLiteDriver
 @testable import Mist
 
-struct MyComponent: Mist.Component
+struct MyComponent: Mist.InstanceComponent
 {
     let models: [any Mist.Model.Type] = [DummyModel1.self, DummyModel2.self]
 }
@@ -153,7 +153,7 @@ final class MistComponentTests: XCTestCase
         
         // Optional: Print rendered HTML for inspection
         print("Rendered HTML:\n\(html)")
-        
+
         try await app.asyncShutdown()
     }
 }
