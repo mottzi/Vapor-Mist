@@ -5,9 +5,6 @@ let package = Package(
     name: "Mist",
     platforms: [
         .macOS(.v13),
-        .iOS(.v13),
-        .tvOS(.v13),
-        .watchOS(.v6),
     ],
     products: [
         .library(name: "Mist", targets: ["Mist"])

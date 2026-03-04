@@ -1,4 +1,4 @@
-// Move this file (mist.js) to: /Public 
+// Move this file (mist.js) to: /Public
 
 class MistSocket {
 
@@ -172,6 +172,13 @@ class MistSocket {
                 // Instance-based component messages (with ID)
                 if (data.createInstanceComponent) {
                     const { component, id, html } = data.createInstanceComponent;
+
+                    // Ensure the generated HTML actually belongs to the channel it was broadcasted on
+                    if (!html.includes(`mist-component="${component}"`)) {
+                        console.log(`[Client] Dropped cross-channel broadcast for ${component}`);
+                        return;
+                    }
+
                     const existingElements = document.querySelectorAll(this.buildComponentSelector(component, id));
 
                     // If component already exists, treat as update
@@ -199,6 +206,13 @@ class MistSocket {
                 }
                 else if (data.updateInstanceComponent) {
                     const { component, id, html } = data.updateInstanceComponent;
+
+                    // Prevent WebSocket Crossover Updates
+                    if (!html.includes(`mist-component="${component}"`)) {
+                        console.log(`[Client] Dropped cross-channel update for ${component}`);
+                        return;
+                    }
+
                     const elements = document.querySelectorAll(this.buildComponentSelector(component, id));
 
                     elements.forEach(element => {
