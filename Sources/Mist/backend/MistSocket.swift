@@ -7,7 +7,12 @@ public struct Socket
 {
     func register(on app: Application)
     {
-        app.webSocket(app.mist.socketPath)
+        let router = switch app.mist.socketMiddleware {
+            case .none: app
+            case .some(let middleware): app.grouped(middleware)
+        }
+
+        router.webSocket(app.mist.socketPath, shouldUpgrade: app.mist.shouldUpgrade)
         { request, ws async in
             await Connection(app: request.application, ws: ws).onUpgrade()
         }

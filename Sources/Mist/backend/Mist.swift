@@ -10,10 +10,23 @@ extension Application
         public let app: Application
         public var clients: MistClients { _clients }
         public var components: Components { _components }
-        public var socketPath: [PathComponent] 
+        
+        public var socketPath: [PathComponent]
         {
             get { _socketPath }
             nonmutating set { _socketPath = newValue }
+        }
+        
+        public var shouldUpgrade: @Sendable (Request) async -> HTTPHeaders?
+        {
+            get { _shouldUpgrade }
+            nonmutating set { _shouldUpgrade = newValue }
+        }
+        
+        public var socketMiddleware: (any Middleware)?
+        {
+            get { _socketMiddleware }
+            nonmutating set { _socketMiddleware = newValue }
         }
 
         public func use(_ components: [any Component]) async
@@ -38,6 +51,8 @@ extension Application.Mist
         var clients: Mist.Clients?
         var components: Mist.Components?
         var socketPath: [PathComponent]?
+        var shouldUpgrade: (@Sendable (Request) async -> HTTPHeaders?)?
+        var socketMiddleware: (any Middleware)?
     }
 
     private struct Key: StorageKey { typealias Value = Storage }
@@ -56,6 +71,8 @@ extension Application.Mist
     private struct ClientsKey: LockKey {}
     private struct ComponentsKey: LockKey {}
     private struct SocketPathKey: LockKey {}
+    private struct ShouldUpgradeKey: LockKey {}
+    private struct SocketMiddlewareKey: LockKey {}
 
     var _clients: Mist.Clients
     {
@@ -93,6 +110,42 @@ extension Application.Mist
             app.locks.lock(for: SocketPathKey.self).withLock
             {
                 _storage.socketPath = newValue
+            }
+        }
+    }
+    
+    var _shouldUpgrade: @Sendable (Request) async -> HTTPHeaders?
+    {
+        get
+        {
+            return app.locks.lock(for: ShouldUpgradeKey.self).withLock
+            {
+                return _storage.shouldUpgrade ?? { _ in HTTPHeaders() }
+            }
+        }
+        nonmutating set
+        {
+            app.locks.lock(for: ShouldUpgradeKey.self).withLock
+            {
+                _storage.shouldUpgrade = newValue
+            }
+        }
+    }
+    
+    var _socketMiddleware: (any Middleware)?
+    {
+        get
+        {
+            return app.locks.lock(for: SocketMiddlewareKey.self).withLock
+            {
+                return _storage.socketMiddleware
+            }
+        }
+        nonmutating set
+        {
+            app.locks.lock(for: SocketMiddlewareKey.self).withLock
+            {
+                _storage.socketMiddleware = newValue
             }
         }
     }
