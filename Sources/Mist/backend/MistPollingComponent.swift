@@ -28,6 +28,7 @@ public extension PollingComponent
 
     func handlePollingUpdate(app: Application) async
     {
+        guard !app.didShutdown else { return }
         guard let context = await poll(on: app.db) else { return await app.mist.clients.broadcast(Message.QueryDelete(component: name)) }
         guard let html = await render(context: context, using: app.leaf.renderer) else { return }
         await app.mist.clients.broadcast(Message.QueryUpdate(component: name, html: html))
@@ -39,6 +40,8 @@ public extension PollingComponent
 
         func tick() async
         {
+            guard !app.didShutdown && !Task.isCancelled else { return }
+            
             guard let context = await poll(on: app.db) else
             {
                 guard lastContext != nil else { return }
@@ -55,11 +58,11 @@ public extension PollingComponent
         }
 
         await tick()
-
-        while !app.didShutdown
+        
+        while !app.didShutdown && !Task.isCancelled
         {
             try? await Task.sleep(for: interval)
-            guard !app.didShutdown else { break }
+            guard !app.didShutdown && !Task.isCancelled else { break }
             await tick()
         }
     }

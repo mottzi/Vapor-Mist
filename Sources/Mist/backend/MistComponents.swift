@@ -46,7 +46,8 @@ extension Components
 
             if let pollingComponent = component as? any PollingComponent
             {
-                Task.detached { [app] in await pollingComponent.startPolling(app: app) }
+                let task = Task.detached { [app] in await pollingComponent.startPolling(app: app) }
+                app.lifecycle.use(PollingLifecycleHandler(task: task, name: pollingComponent.name))
             }
 
             guard !component.actions.isEmpty else { continue }
@@ -100,5 +101,17 @@ extension Components
         let result = await action.perform(id: id, state: &state, on: db)
         await clients.setState(state, for: clientID, componentID: componentKey)
         return result
+    }
+}
+
+struct PollingLifecycleHandler: LifecycleHandler
+{
+    let task: Task<Void, Never>
+    let name: String
+
+    func shutdown(_ app: Application)
+    {
+        task.cancel()
+        app.logger.info("[Mist] Polling stopped for '\(name)'")
     }
 }
