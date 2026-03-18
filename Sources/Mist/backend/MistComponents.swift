@@ -20,9 +20,9 @@ extension Components
         {
             switch component
             {
-                case is InstanceComponent: break
-                case is QueryComponent: break
-                case is PollingComponent: break
+                case is any InstanceComponent: break
+                case is any QueryComponent: break
+                case is any PollingComponent: break
                 default:
                     app.logger.warning("Invalid Component '\(component.name)' attempted registration: ignored.")
                     continue
