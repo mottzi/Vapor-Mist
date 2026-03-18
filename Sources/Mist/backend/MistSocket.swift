@@ -75,6 +75,14 @@ extension Socket.Connection
             }
         }
 
+        if case .success = result
+        {
+            if let pollingComponent = await app.mist.components.getComponent(usingName: component) as? any PollingComponent
+            {
+                await pollingComponent.handlePollingUpdate(app: app)
+            }
+        }
+
         let resultMessage = switch result
         {
             case .success(let message): message ?? "Success"

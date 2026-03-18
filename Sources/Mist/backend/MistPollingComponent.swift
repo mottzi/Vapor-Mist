@@ -26,6 +26,13 @@ public extension PollingComponent
         return String(buffer: buffer)
     }
 
+    func handlePollingUpdate(app: Application) async
+    {
+        guard let context = await poll(on: app.db) else { return await app.mist.clients.broadcast(Message.QueryDelete(component: name)) }
+        guard let html = await render(context: context, using: app.leaf.renderer) else { return }
+        await app.mist.clients.broadcast(Message.QueryUpdate(component: name, html: html))
+    }
+
     func startPolling(app: Application) async
     {
         var lastContext: PollContext? = nil
