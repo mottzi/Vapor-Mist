@@ -22,6 +22,7 @@ extension Components
             {
                 case is InstanceComponent: break
                 case is QueryComponent: break
+                case is PollingComponent: break
                 default:
                     app.logger.warning("Invalid Component '\(component.name)' attempted registration: ignored.")
                     continue
@@ -43,9 +44,13 @@ extension Components
                 modelToComponents[key, default: []].append(component)
             }
 
+            if let pollingComponent = component as? any PollingComponent
+            {
+                Task.detached { [app] in await pollingComponent.startPolling(app: app) }
+            }
+
             guard !component.actions.isEmpty else { continue }
-            componentActions[component.name] = Dictionary(
-                uniqueKeysWithValues: component.actions.map { ($0.name, $0) })
+            componentActions[component.name] = Dictionary(uniqueKeysWithValues: component.actions.map { ($0.name, $0) })
         }
     }
 
