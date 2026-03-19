@@ -55,7 +55,6 @@ extension Application.Leaf
     var defaultSource: NIOLeafFiles
     {
         let root = configuration.rootDirectory
-        application.logger.warning("Mist: computing defaultSource, rootDirectory='\(root)'")
         return NIOLeafFiles(
             fileio: application.fileio,
             limits: .default,

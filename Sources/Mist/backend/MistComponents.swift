@@ -112,6 +112,5 @@ struct PollingLifecycleHandler: LifecycleHandler
     func shutdown(_ app: Application)
     {
         task.cancel()
-        app.logger.info("[Mist] Polling stopped for '\(name)'")
     }
 }
