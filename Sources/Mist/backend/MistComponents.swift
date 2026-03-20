@@ -9,8 +9,38 @@ public actor Components
     var componentActions: [String: [String: any Action]] = [:]
     var activeRequests: Set<String> = []
 
+    // MARK: - StateComponent Pause Registry
+    /// Tracks which StateComponents are currently executing a user-triggered action.
+    /// While a component name is in this set, its background observe loop should yield.
+    var pausedComponents: Set<String> = []
+
     init() {}
 }
+
+// MARK: - Pause Registry API
+
+extension Components
+{
+    /// Lock a component so its background observation loop yields.
+    func pauseComponent(_ name: String)
+    {
+        pausedComponents.insert(name)
+    }
+
+    /// Unlock a component so its background observation loop resumes.
+    func resumeComponent(_ name: String)
+    {
+        pausedComponents.remove(name)
+    }
+
+    /// Check whether a component's observation is currently paused by an active action.
+    public func isComponentPaused(_ name: String) -> Bool
+    {
+        pausedComponents.contains(name)
+    }
+}
+
+// MARK: - Component Registration
 
 extension Components
 {
@@ -23,6 +53,7 @@ extension Components
                 case is any InstanceComponent: break
                 case is any QueryComponent: break
                 case is any PollingComponent: break
+                case is any StateComponent: break
                 default:
                     app.logger.warning("Invalid Component '\(component.name)' attempted registration: ignored.")
                     continue
@@ -48,6 +79,12 @@ extension Components
             {
                 let task = Task.detached { [app] in await pollingComponent.startPolling(app: app) }
                 app.lifecycle.use(PollingLifecycleHandler(task: task, name: pollingComponent.name))
+            }
+
+            if let stateComponent = component as? any StateComponent
+            {
+                let task = Task.detached { [app] in await stateComponent.startObserving(app: app) }
+                app.lifecycle.use(StateLifecycleHandler(task: task, name: stateComponent.name))
             }
 
             guard !component.actions.isEmpty else { continue }
@@ -96,6 +133,11 @@ extension Components
         guard let action = componentActions[action] else { return .failure(message: "Action '\(action)' not found") }
         guard let componentInstance = components.first(where: { $0.name == component }) else { return .failure(message: "Component '\(component)' not found") }
 
+        // 5. If this is a StateComponent, pause its background observation loop
+        let isStateComponent = componentInstance is any StateComponent
+        if isStateComponent { pauseComponent(component) }
+        defer { if isStateComponent { resumeComponent(component) } }
+
         // componentKey is already defined above
         var state = await clients.state(for: clientID, componentID: componentKey, default: componentInstance.defaultState)
         let result = await action.perform(id: id, state: &state, on: db)
@@ -104,7 +146,20 @@ extension Components
     }
 }
 
+// MARK: - Lifecycle Handlers
+
 struct PollingLifecycleHandler: LifecycleHandler
+{
+    let task: Task<Void, Never>
+    let name: String
+
+    func shutdown(_ app: Application)
+    {
+        task.cancel()
+    }
+}
+
+struct StateLifecycleHandler: LifecycleHandler
 {
     let task: Task<Void, Never>
     let name: String

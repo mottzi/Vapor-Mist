@@ -63,6 +63,7 @@ extension Socket.Connection
     {
         let result = await app.mist.components.performAction(component: component, action: action, id: id, clientID: clientID, clients: app.mist.clients, on: app.db)
 
+        // Post-action rendering for InstanceComponent (state-based per-client update)
         if case .success = result, let id
         {
             if let componentInstance = await app.mist.components.getComponent(usingName: component) as? any InstanceComponent
@@ -75,6 +76,10 @@ extension Socket.Connection
             }
         }
 
+        // Post-action broadcasting for PollingComponent (immediate re-poll for all clients)
+        // NOTE: StateComponent does NOT need this — the ReactiveState actor broadcasts
+        // intermediate states directly during the action, and the observe loop resumes
+        // ground-truth polling once the framework unpauses the component.
         if case .success = result
         {
             if let pollingComponent = await app.mist.components.getComponent(usingName: component) as? any PollingComponent
