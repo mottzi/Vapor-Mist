@@ -98,7 +98,7 @@ extension Components
         return modelToComponents[key] ?? []
     }
 
-    func getComponent(usingName name: String) -> (any Component)?
+    public func getComponent(usingName name: String) -> (any Component)?
     {
         return components.first(where: { $0.name == name })
     }
