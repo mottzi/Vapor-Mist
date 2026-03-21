@@ -435,7 +435,7 @@ struct TestAction: Action
 {
     let name: String = "testAction"
     
-    func perform(id: UUID?, state: inout MistState, on db: Database) async -> ActionResult
+    func perform(id: UUID?, state: inout ComponentState, on db: Database) async -> ActionResult
     {
         return .success()
     }
@@ -445,7 +445,7 @@ struct AnotherAction: Action
 {
     let name: String = "anotherAction"
     
-    func perform(id: UUID?, state: inout MistState, on db: Database) async -> ActionResult
+    func perform(id: UUID?, state: inout ComponentState, on db: Database) async -> ActionResult
     {
         return .success(message: "Custom success message")
     }
@@ -455,7 +455,7 @@ struct FailingAction: Action
 {
     let name: String = "failingAction"
     
-    func perform(id: UUID?, state: inout MistState, on db: Database) async -> ActionResult
+    func perform(id: UUID?, state: inout ComponentState, on db: Database) async -> ActionResult
     {
         return .failure(message: "This action always fails")
     }

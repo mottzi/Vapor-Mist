@@ -7,7 +7,7 @@ public protocol Component: Sendable
     var template: Template { get }
     var models: [any Model.Type] { get }
     var actions: [any Action] { get }
-    var defaultState: MistState { get }
+    var defaultState: ComponentState { get }
 
     func shouldUpdate<M: Model>(for model: M) -> Bool
 }
@@ -17,7 +17,7 @@ public extension Component
     var name: String { String(describing: Self.self) }
     var template: Template { .file(path: name) }
     var actions: [any Action] { [] }
-    var defaultState: MistState { [:] }
+    var defaultState: ComponentState { [:] }
 }
 
 public extension Component
@@ -36,7 +36,7 @@ public enum Template: Sendable
 
 public extension Component
 {
-    func render(id: UUID, state: MistState? = nil, on db: Database, using renderer: ViewRenderer) async -> String?
+    func render(id: UUID, state: ComponentState? = nil, on db: Database, using renderer: ViewRenderer) async -> String?
     {
         guard let context = await makeContext(of: id, state: state, in: db) else { return nil }
 
@@ -54,7 +54,7 @@ public extension Component
 
 public extension Component 
 {
-    func makeContext(of componentID: UUID, state: MistState? = nil, in db: Database) async -> SingleComponentContext?
+    func makeContext(of componentID: UUID, state: ComponentState? = nil, in db: Database) async -> SingleComponentContext?
     {
         var container = ModelContainer()
 

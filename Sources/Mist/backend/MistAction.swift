@@ -5,7 +5,7 @@ public protocol Action: Sendable
 {
     var name: String { get }
     
-    func perform(id: UUID?, state: inout MistState, on db: Database) async -> ActionResult
+    func perform(id: UUID?, state: inout ComponentState, on db: Database) async -> ActionResult
 }
 
 public extension Action

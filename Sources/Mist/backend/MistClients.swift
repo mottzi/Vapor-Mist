@@ -7,7 +7,7 @@ public actor Clients
 {
     var clients: [Client] = []
     var componentToClients: [String: Set<UUID>] = [:]
-    var sessionState: [UUID: [String: MistState]] = [:]
+    var sessionState: [UUID: [String: ComponentState]] = [:]
     
     let components: Components
     
@@ -55,12 +55,12 @@ extension Clients
 
 extension Clients
 {
-    func state(for clientID: UUID, componentID: String, default defaultState: MistState) -> MistState
+    func state(for clientID: UUID, componentID: String, default defaultState: ComponentState) -> ComponentState
     {
         return sessionState[clientID]?[componentID] ?? defaultState
     }
     
-    func setState(_ state: MistState, for clientID: UUID, componentID: String)
+    func setState(_ state: ComponentState, for clientID: UUID, componentID: String)
     {
         var clientState = sessionState[clientID] ?? [:]
         clientState[componentID] = state
