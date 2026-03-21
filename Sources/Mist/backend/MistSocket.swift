@@ -57,6 +57,11 @@ extension Socket.Connection
             ? "Client (\(clientID.short)) subscribed to component '\(component)'."
             : "Client (\(clientID.short)) didn't subscribe to component '\(component)'."
         await app.mist.clients.send(response, to: clientID)
+        
+        if success, let stateComponent = await app.mist.components.getComponent(usingName: component) as? any StateComponent
+        {
+            await stateComponent.sendCurrentState(to: clientID)
+        }
     }
 
     func handleAction(_ component: String, _ id: UUID?, _ action: String) async

@@ -34,6 +34,7 @@ extension Clients
     func send(_ actionResult: Message.ActionResult, to clientID: UUID) { send(message: actionResult, to: clientID) }
     func send(_ create: Message.InstanceCreate, to clientID: UUID) { send(message: create, to: clientID) }
     func send(_ update: Message.InstanceUpdate, to clientID: UUID) { send(message: update, to: clientID) }
+    func send(_ update: Message.QueryUpdate, to clientID: UUID) { send(message: update, to: clientID) }
 }
 
 extension Clients 
@@ -115,7 +116,7 @@ extension Message
         var wireFormat: Message { .deleteInstanceComponent(component: component, id: id) }
     }
 
-    struct QueryUpdate: BroadcastableMessage
+    struct QueryUpdate: BroadcastableMessage, SendableMessage
     {
         let component: String
         let html: String

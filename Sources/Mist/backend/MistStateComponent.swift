@@ -16,7 +16,8 @@ public actor ReactiveState<State: Encodable & Equatable & Sendable>
     private var state: State
     private var renderHTML: (@Sendable (State) async -> String?)?
     private var broadcastHTML: (@Sendable (String) async -> Void)?
-
+    private var sendHTML: (@Sendable (UUID, String) async -> Void)?
+    
     public init(initialState: State)
     {
         self.state = initialState
@@ -26,10 +27,12 @@ public actor ReactiveState<State: Encodable & Equatable & Sendable>
     /// rendering and broadcasting pipelines. The component developer never calls this.
     func boot(
         render: @escaping @Sendable (State) async -> String?,
-        broadcast: @escaping @Sendable (String) async -> Void
+        broadcast: @escaping @Sendable (String) async -> Void,
+        send: @escaping @Sendable (UUID, String) async -> Void
     ) {
         self.renderHTML = render
         self.broadcastHTML = broadcast
+        self.sendHTML = send
     }
 
     /// The current state value.
@@ -52,6 +55,12 @@ public actor ReactiveState<State: Encodable & Equatable & Sendable>
     {
         guard let html = await renderHTML?(state) else { return }
         await broadcastHTML?(html)
+    }
+    
+    public func sendCurrent(to clientID: UUID) async
+    {
+        guard let html = await renderHTML?(state) else { return }
+        await sendHTML?(clientID, html)
     }
 }
 
@@ -109,14 +118,15 @@ public extension StateComponent
                     case .file(let path): path
                     case .inline: componentName
                 }
-
                 guard let buffer = try? await app.leaf.renderer.render(templateName, state).data
                 else { return nil }
-
                 return String(buffer: buffer)
             },
             broadcast: { @Sendable html in
                 await app.mist.clients.broadcast(Message.QueryUpdate(component: componentName, html: html))
+            },
+            send: { @Sendable clientID, html in
+                await app.mist.clients.send(Message.QueryUpdate(component: componentName, html: html), to: clientID)
             }
         )
     }
@@ -126,5 +136,10 @@ public extension StateComponent
     {
         await bootState(app: app)
         await observe(app: app)
+    }
+    
+    func sendCurrentState(to clientID: UUID) async
+    {
+        await reactiveState.sendCurrent(to: clientID)
     }
 }
