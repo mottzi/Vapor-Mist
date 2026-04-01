@@ -105,7 +105,7 @@ extension MistComponents {
         of component: String,
         on targetID: UUID?,
         for clientID: UUID
-    ) async -> ActionResult {
+    ) async -> MistActionResult {
         
         let componentKey = targetID?.uuidString ?? component
         let lockKey = "\(clientID.uuidString)-\(componentKey)"

@@ -7,7 +7,7 @@ enum MistMessage: Codable {
     case action(component: String, targetID: UUID?, action: String)
 
     case text(message: String)
-    case actionResult(component: String, targetID: UUID?, action: String, result: ActionResult, message: String)
+    case actionResult(component: String, targetID: UUID?, action: String, result: MistActionResult, message: String)
 
     case createInstanceComponent(component: String, modelID: UUID, html: String)
     case updateInstanceComponent(component: String, modelID: UUID, html: String)
@@ -85,7 +85,7 @@ extension MistMessage {
         let component: String
         let targetID: UUID?
         let action: String
-        let result: ActionResult
+        let result: MistActionResult
         let message: String
 
         var wireFormat: MistMessage { .actionResult(component: component, targetID: targetID, action: action, result: result, message: message) }

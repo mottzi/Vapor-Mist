@@ -366,7 +366,7 @@ struct TestAction: MistAction
 {
     let name: String = "testAction"
     
-    func perform(targetID: UUID?, state: inout MistComponentState, app: Application) async -> ActionResult
+    func perform(targetID: UUID?, state: inout MistComponentState, app: Application) async -> MistActionResult
     {
         .success()
     }
@@ -376,7 +376,7 @@ struct AnotherAction: MistAction
 {
     let name: String = "anotherAction"
     
-    func perform(targetID: UUID?, state: inout MistComponentState, app: Application) async -> ActionResult
+    func perform(targetID: UUID?, state: inout MistComponentState, app: Application) async -> MistActionResult
     {
         .success("Custom success message")
     }
@@ -386,7 +386,7 @@ struct FailingAction: MistAction
 {
     let name: String = "failingAction"
     
-    func perform(targetID: UUID?, state: inout MistComponentState, app: Application) async -> ActionResult
+    func perform(targetID: UUID?, state: inout MistComponentState, app: Application) async -> MistActionResult
     {
         .failure("This action always fails")
     }

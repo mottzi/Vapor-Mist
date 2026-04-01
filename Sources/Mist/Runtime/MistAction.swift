@@ -7,7 +7,7 @@ public protocol MistAction: Sendable {
     var name: String { get }
     
     /// The action to perform, optionally scoped to a specific runtime target, exposing mutable per-client state.
-    func perform(targetID: UUID?, state: inout MistComponentState, app: Application) async -> ActionResult
+    func perform(targetID: UUID?, state: inout MistComponentState, app: Application) async -> MistActionResult
     
 }
 
@@ -19,7 +19,7 @@ public extension MistAction {
 }
 
 /// Outcome reported back after performing an action.
-public enum ActionResult: Codable, Sendable {
+public enum MistActionResult: Codable, Sendable {
     
     /// The action completed successfully.
     case success(_ message: String? = nil)
