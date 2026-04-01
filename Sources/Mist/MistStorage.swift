@@ -53,8 +53,8 @@ extension Mist {
         }
     }
 
-    var _socket: SocketConfiguration {
-        SocketConfiguration(app: app)
+    var _socket: MistSocketConfiguration {
+        MistSocketConfiguration(app: app)
     }
 
     var _socketPath: [PathComponent] {
@@ -101,7 +101,7 @@ extension Mist {
 extension Mist {
     
     /// User-configurable websocket registration settings.
-    public struct SocketConfiguration {
+    public struct MistSocketConfiguration {
         
         let app: Application
 

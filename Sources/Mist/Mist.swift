@@ -19,7 +19,7 @@ public struct Mist {
     var components: MistComponents { _components }
     
     /// User-configurable socket configuration used for endpoint registration.
-    public var socket: SocketConfiguration { _socket }
+    public var socket: MistSocketConfiguration { _socket }
 
     /// Prepares the Mist runtime. Registers components, their templates, and the websocket endpoint.
     public func use(@ComponentBuilder _ components: () -> [any MistComponent]) async throws {
