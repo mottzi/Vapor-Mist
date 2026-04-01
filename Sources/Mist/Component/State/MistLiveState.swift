@@ -2,7 +2,7 @@ import Vapor
 
 /// Actor that isolates context state for fragment components. Publishes updates to clients upon mutation.
 /// Runtime installs render and broadcast hooks during registration.
-public actor LiveState<State: ComponentData> {
+public actor MistLiveState<State: MistComponentData> {
     
     /// Current fragment state used for rendering and broadcasting updates.
     private var state: State

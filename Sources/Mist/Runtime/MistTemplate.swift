@@ -3,7 +3,7 @@ import LeafKit
 import NIOCore
 
 /// Template source used when rendering a component.
-public enum Template: Sendable {
+public enum MistTemplate: Sendable {
     
     /// A file-backed template.
     case file(path: String)
@@ -13,10 +13,10 @@ public enum Template: Sendable {
     
 }
 
-extension MistInterface {
+extension Mist {
     
     /// Registers inline templates with Leaf, using the name of the component. Preserves the default file-backed source.
-    func registerTemplates(for components: [any Component]) async throws {
+    func registerTemplates(for components: [any MistComponent]) async throws {
         
         let sources = LeafSources()
         let templates = TemplateSource()

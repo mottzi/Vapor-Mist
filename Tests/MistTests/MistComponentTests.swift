@@ -6,9 +6,9 @@ import Leaf
 import FluentSQLiteDriver
 @testable import Mist
 
-struct MyComponent: InstanceComponent
+struct MyComponent: MistInstanceComponent
 {
-    let models: [any Mist.Model.Type] = [DummyModel1.self, DummyModel2.self]
+    let models: [any MistModel.Type] = [DummyModel1.self, DummyModel2.self]
 }
 
 final class MistComponentTests: XCTestCase

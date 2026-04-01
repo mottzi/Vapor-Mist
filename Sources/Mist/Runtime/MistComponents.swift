@@ -1,7 +1,7 @@
 import Vapor
 
 /// Runtime registry of components, storing model bindings, actions and more.
-public actor Components {
+public actor MistComponents {
     
     let app: Application
     
@@ -9,25 +9,25 @@ public actor Components {
         self.app = app
     }
     
-    var componentsByName: [String: any Component] = [:]
+    var componentsByName: [String: any MistComponent] = [:]
     
-    var modelToInstanceComponents: [ObjectIdentifier: [any InstanceComponent]] = [:]
-    var modelToQueryComponents: [ObjectIdentifier: [any QueryComponent]] = [:]
+    var modelToInstanceComponents: [ObjectIdentifier: [any MistInstanceComponent]] = [:]
+    var modelToQueryComponents: [ObjectIdentifier: [any MistQueryComponent]] = [:]
     
-    var componentActions: [String: [String: any Action]] = [:]
+    var componentActions: [String: [String: any MistAction]] = [:]
     var activeRequests: Set<String> = []
     var suspendedComponents: Set<String> = []
     
 }
 
-extension Components {
+extension MistComponents {
     
     /// Registers components with the runtime, starting model listeners and state publishing.
-    func registerComponents(_ components: [any Component]) async {
+    func registerComponents(_ components: [any MistComponent]) async {
         
         for component in components {
             guard !hasComponent(named: component.name) else { continue }
-            let observedModels = (component as? any ModelComponent)?.models ?? []
+            let observedModels = (component as? any MistModelComponent)?.models ?? []
             
             for model in observedModels where !hasListeners(using: model) {
                 model.registerListener(with: app)
@@ -36,11 +36,11 @@ extension Components {
             componentsByName[component.name] = component
             
             for model in observedModels {
-                if let instance = component as? any InstanceComponent {
+                if let instance = component as? any MistInstanceComponent {
                     modelToInstanceComponents[ObjectIdentifier(model), default: []].append(instance)
                 }
                 
-                if let fragment = component as? any QueryComponent {
+                if let fragment = component as? any MistQueryComponent {
                     modelToQueryComponents[ObjectIdentifier(model), default: []].append(fragment)
                 }
             }
@@ -55,7 +55,7 @@ extension Components {
         }
     }
 
-    func hasListeners(using model: any Model.Type) -> Bool {
+    func hasListeners(using model: any MistModel.Type) -> Bool {
         
         let key = ObjectIdentifier(model)
         if modelToInstanceComponents[key] != nil { return true }
@@ -67,16 +67,16 @@ extension Components {
         componentsByName[name] != nil
     }
     
-    func getComponent(named name: String) -> (any Component)? {
+    func getComponent(named name: String) -> (any MistComponent)? {
         componentsByName[name]
     }
     
-    func getInstanceComponents(using model: any Model.Type) -> [any InstanceComponent] {
+    func getInstanceComponents(using model: any MistModel.Type) -> [any MistInstanceComponent] {
         let key = ObjectIdentifier(model)
         return modelToInstanceComponents[key] ?? []
     }
     
-    func getQueryComponents(using model: any Model.Type) -> [any QueryComponent] {
+    func getQueryComponents(using model: any MistModel.Type) -> [any MistQueryComponent] {
         let key = ObjectIdentifier(model)
         return modelToQueryComponents[key] ?? []
     }
@@ -85,7 +85,7 @@ extension Components {
 
 
 
-extension Components {
+extension MistComponents {
     
     func suspendUpdates(for component: String) {
         suspendedComponents.insert(component)
@@ -118,7 +118,7 @@ extension Components {
         guard let action = componentActions[actionName] else { return .failure("Action '\(actionName)' not found") }
         guard let componentInstance = componentsByName[component] else { return .failure("Component '\(component)' not found") }
 
-        let shouldSuspendUpdates = (componentInstance as? any FragmentComponent)?.pausesDuringAction == true
+        let shouldSuspendUpdates = (componentInstance as? any MistFragmentComponent)?.pausesDuringAction == true
         if shouldSuspendUpdates { suspendUpdates(for: component) }
         defer { if shouldSuspendUpdates { resumeUpdates(for: component) } }
 
@@ -131,38 +131,38 @@ extension Components {
     
 }
 
-private extension Components {
+private extension MistComponents {
     
     /// Starts runtime publishing for a component when needed.
-    func startPublishing(for component: any Component) async -> Task<Void, Never>? {
+    func startPublishing(for component: any MistComponent) async -> Task<Void, Never>? {
         
         switch component {
-            case let component as any ManualComponent: await startManualPublishing(for: component)
-            case let component as any LiveComponent: await startLivePublishing(for: component)
-            case let component as any PollingComponent: startPollingPublishing(for: component)
+            case let component as any MistManualComponent: await startManualPublishing(for: component)
+            case let component as any MistLiveComponent: await startLivePublishing(for: component)
+            case let component as any MistPollingComponent: startPollingPublishing(for: component)
             default: nil
         }
     }
     
     /// Starts runtime publishing for a manual component.
-    func startManualPublishing<C: ManualComponent>(for component: C) async -> Task<Void, Never>? {
+    func startManualPublishing<C: MistManualComponent>(for component: C) async -> Task<Void, Never>? {
         let app = self.app
         
         await component.state.boot(
             render: { await component.render(with: $0, using: app.leaf.renderer) },
-            broadcast: { await app.mist.clients.broadcast(Message.QueryUpdate(component: component.name, html: $0)) }
+            broadcast: { await app.mist.clients.broadcast(MistMessage.QueryUpdate(component: component.name, html: $0)) }
         )
         
         return nil
     }
     
     /// Starts runtime publishing for a live component.
-    func startLivePublishing<C: LiveComponent>(for component: C) async -> Task<Void, Never> {
+    func startLivePublishing<C: MistLiveComponent>(for component: C) async -> Task<Void, Never> {
         let app = self.app
 
         await component.state.boot(
             render: { await component.render(with: $0, using: app.leaf.renderer) },
-            broadcast: { await app.mist.clients.broadcast(Message.QueryUpdate(component: component.name, html: $0)) }
+            broadcast: { await app.mist.clients.broadcast(MistMessage.QueryUpdate(component: component.name, html: $0)) }
         )
         
         return Task.detached { [app] in
@@ -178,7 +178,7 @@ private extension Components {
     }
     
     /// Starts runtime publishing for a polling component.
-    func startPollingPublishing<C: PollingComponent>(for component: C) -> Task<Void, Never> {
+    func startPollingPublishing<C: MistPollingComponent>(for component: C) -> Task<Void, Never> {
         Task.detached { [app] in
             var lastContext: Data?
             
@@ -188,7 +188,7 @@ private extension Components {
                 guard let context = await component.poll(on: app.db) else {
                     guard lastContext != nil else { return }
                     lastContext = nil
-                    await app.mist.clients.broadcast(Message.QueryDelete(component: component.name))
+                    await app.mist.clients.broadcast(MistMessage.QueryDelete(component: component.name))
                     return
                 }
 
@@ -197,7 +197,7 @@ private extension Components {
                 lastContext = encodedContext
 
                 guard let html = await component.render(with: context, using: app.leaf.renderer) else { return }
-                await app.mist.clients.broadcast(Message.QueryUpdate(component: component.name, html: html))
+                await app.mist.clients.broadcast(MistMessage.QueryUpdate(component: component.name, html: html))
             }
 
             await tick()

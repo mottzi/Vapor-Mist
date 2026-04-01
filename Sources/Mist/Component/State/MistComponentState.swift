@@ -1,13 +1,13 @@
 import Foundation
 
 /// Constraints for data rendered by components or stored in shared fragment state.
-public typealias ComponentData = Encodable & Equatable & Sendable
+public typealias MistComponentData = Encodable & Equatable & Sendable
 
 /// Per-client state keyed by component-defined field names.
-public typealias ComponentState = [String: ComponentValue]
+public typealias MistComponentState = [String: MistComponentValue]
 
 /// Primitive value stored inside per-client component state.
-public enum ComponentValue: ComponentData {
+public enum MistComponentValue: MistComponentData {
     
     case bool(Bool)
     case string(String)

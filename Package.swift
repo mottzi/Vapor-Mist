@@ -22,6 +22,10 @@ let package = Package(
                 .product(name: "Vapor", package: "vapor"),
                 .product(name: "Fluent", package: "fluent"),
                 .product(name: "Leaf", package: "leaf"),
+            ],
+            resources: [
+                .copy("Frontend/mist.js"),
+                .copy("Frontend/morphdom.js"),
             ]
         ),
         .testTarget(

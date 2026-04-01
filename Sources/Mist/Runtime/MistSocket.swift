@@ -1,7 +1,7 @@
 import Vapor
 import Leaf
 
-public struct Socket {
+public struct MistSocket {
     
     /// Opens the websocket endpoint and upgrades connecting clients.
     static func register(with app: Application) {
@@ -17,7 +17,7 @@ public struct Socket {
     }
 }
 
-extension Socket.Connection {
+extension MistSocket.Connection {
     
     /// Registers the connected client with the runtime and starts listening to incoming messages.
     func onUpgrade() async {
@@ -38,7 +38,7 @@ extension Socket.Connection {
     func onText(_ text: String) async {
         
         guard let data = text.data(using: .utf8) else { return }
-        guard let message = try? JSONDecoder().decode(Message.self, from: data) else { return }
+        guard let message = try? JSONDecoder().decode(MistMessage.self, from: data) else { return }
         
         switch message {
             case .subscribe(let component):
@@ -53,7 +53,7 @@ extension Socket.Connection {
     
 }
 
-extension Socket.Connection {
+extension MistSocket.Connection {
 
     /// Registers a client's component subscription with the runtime. Sends the current fragment when available.
     func handleSubscription(of component: String) async {
@@ -64,7 +64,7 @@ extension Socket.Connection {
             : "Client (\(clientID.short)) didn't subscribe to component '\(component)'."
         await app.mist.clients.send(response, to: clientID)
         
-        if success, let fragment = await app.mist.components.getComponent(named: component) as? any FragmentComponent {
+        if success, let fragment = await app.mist.components.getComponent(named: component) as? any MistFragmentComponent {
             await fragment.sendCurrent(to: clientID, app: app)
         }
     }
@@ -77,23 +77,23 @@ extension Socket.Connection {
         if case .success = result {
             let componentInstance = await app.mist.components.getComponent(named: component)
 
-            if let modelID = targetID, let instanceComponent = componentInstance as? any InstanceComponent {
+            if let modelID = targetID, let instanceComponent = componentInstance as? any MistInstanceComponent {
                 let state = await app.mist.clients.getState(for: clientID, componentID: modelID.uuidString, default: instanceComponent.defaultState)
                 if let html = await instanceComponent.render(with: modelID, state: state, on: app.db, using: app.leaf.renderer) {
-                    await app.mist.clients.send(Message.InstanceUpdate(component: component, modelID: modelID, html: html), to: clientID)
+                    await app.mist.clients.send(MistMessage.InstanceUpdate(component: component, modelID: modelID, html: html), to: clientID)
                 }
             }
 
-            if let fragment = componentInstance as? any PollingComponent {
+            if let fragment = componentInstance as? any MistPollingComponent {
                 guard !app.didShutdown else { return }
                 
                 guard let context = await fragment.poll(on: app.db) else {
-                    await app.mist.clients.broadcast(Message.QueryDelete(component: component))
+                    await app.mist.clients.broadcast(MistMessage.QueryDelete(component: component))
                     return
                 }
                 
                 guard let html = await fragment.render(with: context, using: app.leaf.renderer) else { return }
-                await app.mist.clients.broadcast(Message.QueryUpdate(component: component, html: html))
+                await app.mist.clients.broadcast(MistMessage.QueryUpdate(component: component, html: html))
             }
         }
 
@@ -102,13 +102,13 @@ extension Socket.Connection {
             case .failure(let message): message ?? "Failure"
         }
 
-        let message = Message.ActionResultMessage(component: component, targetID: targetID, action: action, result: result, message: resultMessage)
+        let message = MistMessage.ActionResultMessage(component: component, targetID: targetID, action: action, result: result, message: resultMessage)
         await app.mist.clients.send(message, to: clientID)
     }
 
 }
 
-extension Socket {
+extension MistSocket {
     
     struct Connection {
         

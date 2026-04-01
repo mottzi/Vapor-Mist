@@ -2,24 +2,24 @@ import Vapor
 import Fluent
 
 /// A fragment-backed unit resolved from a query.
-public protocol QueryComponent: FragmentComponent, ModelComponent {
+public protocol MistQueryComponent: MistFragmentComponent, MistModelComponent {
     
     /// Model type returned by the query.
-    associatedtype FragmentModel: Model
+    associatedtype FragmentModel: MistModel
     
     /// Returns the model currently backing this fragment.
     func query(on db: Database) async -> FragmentModel?
     
 }
 
-public extension QueryComponent {
+public extension MistQueryComponent {
     
     /// Default: tracks only the queried model type.
-    var models: [any Model.Type] { [FragmentModel.self] }
+    var models: [any MistModel.Type] { [FragmentModel.self] }
     
 }
 
-public extension QueryComponent {
+public extension MistQueryComponent {
     
     /// Renders the fragment for the model currently returned by `query(on:)`.
     func renderCurrent(app: Application) async -> String? {

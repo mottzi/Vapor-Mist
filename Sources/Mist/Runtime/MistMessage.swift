@@ -1,7 +1,7 @@
 import Vapor
 
 /// Message exchanged between clients and the runtime over a socket.
-enum Message: Codable {
+enum MistMessage: Codable {
     
     case subscribe(component: String)
     case action(component: String, targetID: UUID?, action: String)
@@ -18,7 +18,7 @@ enum Message: Codable {
     
 }
 
-extension Clients {
+extension MistClients {
     
     /// Encodes and sends a typed socket message to one client.
     private func send<T: SendableMessage>(message: T, to clientID: UUID) {
@@ -30,17 +30,17 @@ extension Clients {
         client.socket.eventLoop.execute { client.socket.send(jsonString, promise: nil) }
     }
     
-    func send(_ message: String, to clientID: UUID)                     { send(Message.Text(message: message), to: clientID) }
-    func send(_ message: Message.Text, to clientID: UUID)               { send(message: message, to: clientID) }
-    func send(_ actionResult: Message.ActionResultMessage, to clientID: UUID) { send(message: actionResult, to: clientID) }
-    func send(_ create: Message.InstanceCreate, to clientID: UUID)      { send(message: create, to: clientID) }
-    func send(_ update: Message.InstanceUpdate, to clientID: UUID)      { send(message: update, to: clientID) }
-    func send(_ update: Message.QueryUpdate, to clientID: UUID)         { send(message: update, to: clientID) }
-    func send(_ delete: Message.QueryDelete, to clientID: UUID)         { send(message: delete, to: clientID) }
+    func send(_ message: String, to clientID: UUID)                     { send(MistMessage.Text(message: message), to: clientID) }
+    func send(_ message: MistMessage.Text, to clientID: UUID)               { send(message: message, to: clientID) }
+    func send(_ actionResult: MistMessage.ActionResultMessage, to clientID: UUID) { send(message: actionResult, to: clientID) }
+    func send(_ create: MistMessage.InstanceCreate, to clientID: UUID)      { send(message: create, to: clientID) }
+    func send(_ update: MistMessage.InstanceUpdate, to clientID: UUID)      { send(message: update, to: clientID) }
+    func send(_ update: MistMessage.QueryUpdate, to clientID: UUID)         { send(message: update, to: clientID) }
+    func send(_ delete: MistMessage.QueryDelete, to clientID: UUID)         { send(message: delete, to: clientID) }
     
 }
 
-extension Clients {
+extension MistClients {
     
     /// Encodes and broadcasts a typed socket message to all subscribers of a component.
     private func broadcast<T: BroadcastableMessage>(message: T) {
@@ -53,11 +53,11 @@ extension Clients {
         for socket in sockets { socket.eventLoop.execute { socket.send(jsonString, promise: nil) } }
     }
 
-    func broadcast(_ create: Message.InstanceCreate) { broadcast(message: create) }
-    func broadcast(_ update: Message.InstanceUpdate) { broadcast(message: update) }
-    func broadcast(_ delete: Message.InstanceDelete) { broadcast(message: delete) }
-    func broadcast(_ update: Message.QueryUpdate)    { broadcast(message: update) }
-    func broadcast(_ delete: Message.QueryDelete)    { broadcast(message: delete) }
+    func broadcast(_ create: MistMessage.InstanceCreate) { broadcast(message: create) }
+    func broadcast(_ update: MistMessage.InstanceUpdate) { broadcast(message: update) }
+    func broadcast(_ delete: MistMessage.InstanceDelete) { broadcast(message: delete) }
+    func broadcast(_ update: MistMessage.QueryUpdate)    { broadcast(message: update) }
+    func broadcast(_ delete: MistMessage.QueryDelete)    { broadcast(message: delete) }
     
 }
 
@@ -66,19 +66,19 @@ extension Clients {
 /// That keeps call sites narrower and prevents routing a message in unsupported ways at compile time.
 
 protocol SendableMessage {
-    var wireFormat: Message { get }
+    var wireFormat: MistMessage { get }
 }
 
 protocol BroadcastableMessage {
     var component: String { get }
-    var wireFormat: Message { get }
+    var wireFormat: MistMessage { get }
 }
 
-extension Message {
+extension MistMessage {
     
     struct Text: SendableMessage {
         let message: String
-        var wireFormat: Message { .text(message: message) }
+        var wireFormat: MistMessage { .text(message: message) }
     }
 
     struct ActionResultMessage: SendableMessage {
@@ -88,42 +88,42 @@ extension Message {
         let result: ActionResult
         let message: String
 
-        var wireFormat: Message { .actionResult(component: component, targetID: targetID, action: action, result: result, message: message) }
+        var wireFormat: MistMessage { .actionResult(component: component, targetID: targetID, action: action, result: result, message: message) }
     }
     
 }
 
-extension Message {
+extension MistMessage {
     
     struct InstanceCreate: BroadcastableMessage, SendableMessage {
         let component: String
         let modelID: UUID
         let html: String
-        var wireFormat: Message { .createInstanceComponent(component: component, modelID: modelID, html: html) }
+        var wireFormat: MistMessage { .createInstanceComponent(component: component, modelID: modelID, html: html) }
     }
 
     struct InstanceUpdate: BroadcastableMessage, SendableMessage {
         let component: String
         let modelID: UUID
         let html: String
-        var wireFormat: Message { .updateInstanceComponent(component: component, modelID: modelID, html: html) }
+        var wireFormat: MistMessage { .updateInstanceComponent(component: component, modelID: modelID, html: html) }
     }
 
     struct InstanceDelete: BroadcastableMessage {
         let component: String
         let modelID: UUID
-        var wireFormat: Message { .deleteInstanceComponent(component: component, modelID: modelID) }
+        var wireFormat: MistMessage { .deleteInstanceComponent(component: component, modelID: modelID) }
     }
 
     struct QueryUpdate: BroadcastableMessage, SendableMessage {
         let component: String
         let html: String
-        var wireFormat: Message { .updateQueryComponent(component: component, html: html) }
+        var wireFormat: MistMessage { .updateQueryComponent(component: component, html: html) }
     }
 
     struct QueryDelete: BroadcastableMessage, SendableMessage {
         let component: String
-        var wireFormat: Message { .deleteQueryComponent(component: component) }
+        var wireFormat: MistMessage { .deleteQueryComponent(component: component) }
     }
     
 }

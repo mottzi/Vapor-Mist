@@ -1,23 +1,23 @@
 import Vapor
 
 /// A stateful fragment that renders and updates from periodically recomputed state.
-public protocol LiveComponent: FragmentComponent {
+public protocol MistLiveComponent: MistFragmentComponent {
     
     /// State type rendered by this fragment.
-    associatedtype FragmentState: ComponentData
+    associatedtype FragmentState: MistComponentData
     
     /// Shared state rendered and synchronized for this fragment.
-    var state: LiveState<FragmentState> { get }
+    var state: MistLiveState<FragmentState> { get }
     
     /// Interval between automatic refreshes.
     var refreshInterval: Duration { get }
     
     /// Refreshes fragment state for the current update cycle.
-    func refresh(state: LiveState<FragmentState>, app: Application) async
+    func refresh(state: MistLiveState<FragmentState>, app: Application) async
     
 }
 
-public extension LiveComponent {
+public extension MistLiveComponent {
     
     /// Default: refresh every three seconds.
     var refreshInterval: Duration { .seconds(3) }
@@ -27,7 +27,7 @@ public extension LiveComponent {
     
 }
 
-public extension LiveComponent {
+public extension MistLiveComponent {
     
     /// Renders the fragment from the current live state.
     func renderCurrent(app: Application) async -> String? {

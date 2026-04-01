@@ -4,7 +4,7 @@ import Fluent
 import FluentSQLiteDriver
 @testable import Mist
 
-final class TestModelWithExtras: Mist.Model, Content, @unchecked Sendable
+final class TestModelWithExtras: MistModel, Content, @unchecked Sendable
 {
     static let schema = "test_models_with_extras"
     
@@ -80,7 +80,7 @@ final class MistContextExtrasTests: XCTestCase
         try await model.save(on: app.db)
         
         // Create a ModelContext and add the model
-        var container = ModelContext()
+        var container = MistModelContext()
         container.add(model, as: TestModelWithExtras.self)
         
         // Encode the container to JSON
@@ -160,7 +160,7 @@ final class MistContextExtrasTests: XCTestCase
         try await app.startup()
         
         // Create a simple model that doesn't override computedProperties
-        final class SimpleModel: Mist.Model, Content, @unchecked Sendable
+        final class SimpleModel: MistModel, Content, @unchecked Sendable
         {
             static let schema = "simple_models"
             
@@ -180,7 +180,7 @@ final class MistContextExtrasTests: XCTestCase
         let model = SimpleModel(id: modelID, value: "simple")
         
         // Create a ModelContext and add the model
-        var container = ModelContext()
+        var container = MistModelContext()
         container.add(model, as: SimpleModel.self)
         
         // Encode the container
@@ -216,7 +216,7 @@ final class MistContextExtrasTests: XCTestCase
         
         try await app.startup()
         
-        final class ComplexExtrasModel: Mist.Model, Content, @unchecked Sendable
+        final class ComplexExtrasModel: MistModel, Content, @unchecked Sendable
         {
             static let schema = "complex_extras_models"
             
@@ -249,7 +249,7 @@ final class MistContextExtrasTests: XCTestCase
         let modelID = UUID()
         let model = ComplexExtrasModel(id: modelID, title: "Complex Test")
         
-        var container = ModelContext()
+        var container = MistModelContext()
         container.add(model, as: ComplexExtrasModel.self)
         
         let encoder = JSONEncoder()

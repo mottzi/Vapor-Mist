@@ -2,17 +2,17 @@ import Vapor
 import Fluent
 
 /// A unit addressed and updated per model instance.
-public protocol InstanceComponent: ModelComponent {
+public protocol MistInstanceComponent: MistModelComponent {
     
     /// Returns the model instances used for initial rendering.
-    func allModels(on db: Database) async -> [any Model]?
+    func allModels(on db: Database) async -> [any MistModel]?
     
 }
 
-public extension InstanceComponent {
+public extension MistInstanceComponent {
     
     /// Default: loads all records of the first tracked model type.
-    func allModels(on db: Database) async -> [any Model]? {
+    func allModels(on db: Database) async -> [any MistModel]? {
         guard let primaryModelType = models.first else { return nil }
         return await primaryModelType.findAll(on: db)        
     }
@@ -20,7 +20,7 @@ public extension InstanceComponent {
     /// Builds render context for all model instances returned by `allModels(on:)`.
     func makeContext(ofAll db: Database) async -> ComponentContexts {
         
-        var modelContainers: [ModelContext] = []
+        var modelContainers: [MistModelContext] = []
 
         guard let primaryModels = await allModels(on: db) else { return .empty }
 

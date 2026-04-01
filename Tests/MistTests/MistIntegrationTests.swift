@@ -50,7 +50,7 @@ final class MistIntegrationTests: XCTestCase
                 
                 // try to decode json message to typed mist message
                 guard let data = text.data(using: .utf8) else { return XCTFail("Failed to convert JSON string to data") }
-                guard let message = try? JSONDecoder().decode(Mist.Message.self, from: data) else { return XCTFail("Failed to decode data to Mist message") }
+                guard let message = try? JSONDecoder().decode(MistMessage.self, from: data) else { return XCTFail("Failed to decode data to Mist message") }
                 
                 switch message
                 {
@@ -159,7 +159,7 @@ final class MistIntegrationTests: XCTestCase
                 
                 // decode subscription message
                 guard let data = text.data(using: .utf8),
-                      let message = try? JSONDecoder().decode(Mist.Message.self, from: data) else
+                      let message = try? JSONDecoder().decode(MistMessage.self, from: data) else
                 {
                     return await test.fail("Failed to decode client message")
                 }
@@ -205,12 +205,12 @@ final class MistIntegrationTests: XCTestCase
             ws.onText { ws, text async in
                 print("*** Client received server message...")
                 
-                // decode to Mist.Message
+                // decode to MistMessage
                 guard let data = text.data(using: .utf8) else { return await test.fail("Error decoding") }
-                guard let message = try? JSONDecoder().decode(Mist.Message.self, from: data) else { return await test.fail("Error decoding") }
+                guard let message = try? JSONDecoder().decode(MistMessage.self, from: data) else { return await test.fail("Error decoding") }
   
                 // verify instance update message
-                guard case .updateInstanceComponent(let component, let receivedModelID, let html) = message else { return await test.fail("Wrong Mist.Message received") }
+                guard case .updateInstanceComponent(let component, let receivedModelID, let html) = message else { return await test.fail("Wrong MistMessage received") }
                 guard component == "TestComponent" else { return await test.fail("Wrong Component received") }
                 guard receivedModelID == modelID else { return await test.fail("Wrong model ID received") }
                 
@@ -262,17 +262,17 @@ final class MistIntegrationTests: XCTestCase
     }
 }
     
-struct DumbComp4133: Mist.InstanceComponent
+struct DumbComp4133: MistInstanceComponent
 {
-    let models: [any Mist.Model.Type] = [DummyModel1.self, DummyModel2.self]
+    let models: [any MistModel.Type] = [DummyModel1.self, DummyModel2.self]
 }
 
-struct TestComponent: Mist.InstanceComponent
+struct TestComponent: MistInstanceComponent
 {
 
-    let models: [any Mist.Model.Type] = [DummyModel1.self, DummyModel2.self]
+    let models: [any MistModel.Type] = [DummyModel1.self, DummyModel2.self]
 
-    let template: Template = .inline(template:
+    let template: MistTemplate = .inline(template:
         """
         <div mist-component="TestComponent" mist-id="#(context.dummymodel1.id)">
             <span>#(context.dummymodel1.id)</span>

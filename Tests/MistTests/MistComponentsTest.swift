@@ -18,8 +18,8 @@ final class MistComponentsTest: XCTestCase
 
         XCTAssertEqual(componentsByName.count, 2, "Registry should contain exactly 2 components")
 
-        guard let dummyRow1 = componentsByName["DummyRow1"] as? any InstanceComponent,
-              let dummyRow2 = componentsByName["DummyRow2"] as? any InstanceComponent else
+        guard let dummyRow1 = componentsByName["DummyRow1"] as? any MistInstanceComponent,
+              let dummyRow2 = componentsByName["DummyRow2"] as? any MistInstanceComponent else
         {
             return XCTFail("Registered components should be addressable by name")
         }
@@ -338,21 +338,21 @@ final class MistComponentsTest: XCTestCase
     }
 }
 
-struct DummyRow1: Mist.InstanceComponent
+struct DummyRow1: MistInstanceComponent
 {
-    let models: [any Mist.Model.Type] = [DummyModel1.self, DummyModel2.self]
+    let models: [any MistModel.Type] = [DummyModel1.self, DummyModel2.self]
 }
 
-struct DummyRow2: Mist.InstanceComponent
+struct DummyRow2: MistInstanceComponent
 {
-    let models: [any Mist.Model.Type] = [DummyModel1.self]
+    let models: [any MistModel.Type] = [DummyModel1.self]
 }
 
-struct DummyRowWithActions: Mist.InstanceComponent
+struct DummyRowWithActions: MistInstanceComponent
 {
-    let models: [any Mist.Model.Type] = [DummyModel1.self]
+    let models: [any MistModel.Type] = [DummyModel1.self]
     
-    var actions: [any Action]
+    var actions: [any MistAction]
     {
         [
             TestAction(),
@@ -362,37 +362,37 @@ struct DummyRowWithActions: Mist.InstanceComponent
     }
 }
 
-struct TestAction: Action
+struct TestAction: MistAction
 {
     let name: String = "testAction"
     
-    func perform(targetID: UUID?, state: inout ComponentState, app: Application) async -> ActionResult
+    func perform(targetID: UUID?, state: inout MistComponentState, app: Application) async -> ActionResult
     {
         .success()
     }
 }
 
-struct AnotherAction: Action
+struct AnotherAction: MistAction
 {
     let name: String = "anotherAction"
     
-    func perform(targetID: UUID?, state: inout ComponentState, app: Application) async -> ActionResult
+    func perform(targetID: UUID?, state: inout MistComponentState, app: Application) async -> ActionResult
     {
         .success("Custom success message")
     }
 }
 
-struct FailingAction: Action
+struct FailingAction: MistAction
 {
     let name: String = "failingAction"
     
-    func perform(targetID: UUID?, state: inout ComponentState, app: Application) async -> ActionResult
+    func perform(targetID: UUID?, state: inout MistComponentState, app: Application) async -> ActionResult
     {
         .failure("This action always fails")
     }
 }
 
-final class DummyModel1: Mist.Model, Content, @unchecked Sendable
+final class DummyModel1: MistModel, Content, @unchecked Sendable
 {
     static let schema = "dummymodels"
     
@@ -429,7 +429,7 @@ extension DummyModel1
     }
 }
 
-final class DummyModel2: Mist.Model, Content, @unchecked Sendable
+final class DummyModel2: MistModel, Content, @unchecked Sendable
 {
     static let schema = "dummymodels2"
     
@@ -466,7 +466,7 @@ extension DummyModel2
     }
 }
 
-final class DummyModel3: Mist.Model, Content, @unchecked Sendable
+final class DummyModel3: MistModel, Content, @unchecked Sendable
 {
     static let schema = "dummymodels3"
     

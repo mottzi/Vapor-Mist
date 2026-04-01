@@ -6,9 +6,9 @@ import LeafKit
 @testable import Mist
 
 #if DEBUG
-extension Components
+extension MistComponents
 {
-    func registerWOListenerForTesting(_ component: any Mist.InstanceComponent) 
+    func registerWOListenerForTesting(_ component: any MistInstanceComponent) 
     {
         guard componentsByName[component.name] == nil else { return }
         componentsByName[component.name] = component

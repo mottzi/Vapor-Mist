@@ -1,7 +1,7 @@
 import Vapor
 
 /// Runtime registry of connected clients, holding subscriptions and per-client component state.
-public actor Clients {
+public actor MistClients {
     
     /// Connected clients registered with the runtime.
     var clients: [Client] = []
@@ -10,18 +10,18 @@ public actor Clients {
     var componentToClients: [String: Set<UUID>] = [:]
     
     /// Per-client state keyed by component name or instance ID.
-    var clientToComponentState: [UUID: [String: ComponentState]] = [:]
+    var clientToComponentState: [UUID: [String: MistComponentState]] = [:]
     
     /// Reference to the runtime components registry.
-    let components: Components
+    let components: MistComponents
     
-    init(components: Components) {
+    init(components: MistComponents) {
         self.components = components
     }
     
 }
 
-extension Clients {
+extension MistClients {
     
     /// A connected client and its current subscriptions.
     struct Client {
@@ -60,15 +60,15 @@ extension Clients {
     
 }
 
-extension Clients {
+extension MistClients {
     
     /// Returns the component state for a client.
-    func getState(for clientID: UUID, componentID: String, default defaultState: ComponentState) -> ComponentState {
+    func getState(for clientID: UUID, componentID: String, default defaultState: MistComponentState) -> MistComponentState {
         clientToComponentState[clientID]?[componentID] ?? defaultState
     }
     
     /// Sets the component state for a client.
-    func setState(_ state: ComponentState, for clientID: UUID, componentID: String) {
+    func setState(_ state: MistComponentState, for clientID: UUID, componentID: String) {
         var clientState = clientToComponentState[clientID] ?? [:]
         clientState[componentID] = state
         clientToComponentState[clientID] = clientState
@@ -92,7 +92,7 @@ extension Clients {
     
 }
 
-extension Clients {
+extension MistClients {
     
     @discardableResult
     /// Registers a client's subscription to a component.

@@ -52,7 +52,7 @@ import Vapor
 import Fluent
 import Mist
 
-final class DummyModel1: Mist.Model, Content
+final class DummyModel1: MistModel, Content
 {
     static let schema = "dummymodel1"
     
@@ -101,7 +101,7 @@ import Mist
 
 struct DummyComponent: Mist.Component
 {
-    static let models: [any Mist.Model.Type] = [
+    static let models: [any MistModel.Type] = [
         DummyModel1.self,
         DummyModel2.self
     ]
@@ -255,7 +255,7 @@ Simply copy this file to your application's /Public directory.
 
 - Type-safe component registration using protocols ([MistComponent.swift](Sources/Mist/MistComponent.swift))
 - Actor-based client and component registries for thread safety ([MistClients.swift](Sources/Mist/MistClients.swift), [MistComponents.swift](Sources/Mist/MistComponents.swift))
-- Fluent database listener middleware configuration ([MistListener.swift](Sources/Mist/MistListener.swift))
+- Fluent database listener middleware configuration ([MistModelListener.swift](Sources/Mist/MistModelListener.swift))
 - Leaf template rendering for component HTML generation ([MistComponent.swift](Sources/Mist/MistComponent.swift))
 - JSON-based message protocol for communication over websockets ([MistSocket.swift](Sources/Mist/MistSocket.swift), [MistMessage.swift](Sources/Mist/MistMessage.swift))
 
@@ -288,7 +288,7 @@ This prototype contains eight .swift and one .js file:
 
 // MistComponent.swift:     context generation, html rendering
 // MistModel.swift:         context generation
-// MistListener.swift:      database update detection, messaging
+// MistModelListener.swift:      database update detection, messaging
 
 // MistSocket.swift:        web socket server, handles client component subscriptions
 // MistMessage.swift:       type safe client-server-client communication over web sockets

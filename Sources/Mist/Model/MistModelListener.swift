@@ -1,18 +1,18 @@
 import Vapor
 import Fluent
 
-extension Model {
+extension MistModel {
     
     /// Registers the model listener used to refresh components after database changes.
     static func registerListener(with app: Application) {
-        let listener = ModelListener<Self>(app: app)
+        let listener = MistModelListener<Self>(app: app)
         app.databases.middleware.use(listener)
     }
     
 }
 
 /// Database interceptor that forwards model events into component updates.
-struct ModelListener<M: Model>: AsyncModelMiddleware {
+struct MistModelListener<M: MistModel>: AsyncModelMiddleware {
     
     let app: Application
 
@@ -33,7 +33,7 @@ struct ModelListener<M: Model>: AsyncModelMiddleware {
     
 }
 
-extension ModelListener
+extension MistModelListener
 {
     enum ModelEvent { case creation, update, deletion }
     
@@ -59,38 +59,38 @@ extension ModelListener
     
 }
 
-extension ModelListener {
+extension MistModelListener {
     
     /// Renders and sends a newly created instance to subscribed clients.
-    func handleCreate(for component: any InstanceComponent, modelID: UUID) async {
+    func handleCreate(for component: any MistInstanceComponent, modelID: UUID) async {
         
         for subscriber in await app.mist.clients.getSubscribers(of: component.name) {
             Task.detached {
                 let state = await app.mist.clients.getState(for: subscriber.clientID, componentID: modelID.uuidString, default: component.defaultState)
                 guard let html = await component.render(with: modelID, state: state, on: app.db, using: app.leaf.renderer) else { return }
-                await app.mist.clients.send(Message.InstanceCreate(component: component.name, modelID: modelID, html: html), to: subscriber.clientID)
+                await app.mist.clients.send(MistMessage.InstanceCreate(component: component.name, modelID: modelID, html: html), to: subscriber.clientID)
             }
         }
     }
     
     /// Renders and sends updated HTML for an existing instance to subscribed clients.
-    func handleUpdate(for component: any InstanceComponent, modelID: UUID) async {
+    func handleUpdate(for component: any MistInstanceComponent, modelID: UUID) async {
         
         for subscriber in await app.mist.clients.getSubscribers(of: component.name) {
             Task.detached {
                 let state = await app.mist.clients.getState(for: subscriber.clientID, componentID: modelID.uuidString, default: component.defaultState)
                 guard let html = await component.render(with: modelID, state: state, on: app.db, using: app.leaf.renderer) else { return }
-                await app.mist.clients.send(Message.InstanceUpdate(component: component.name, modelID: modelID, html: html), to: subscriber.clientID)
+                await app.mist.clients.send(MistMessage.InstanceUpdate(component: component.name, modelID: modelID, html: html), to: subscriber.clientID)
             }
         }
     }
     
     /// Clears per-instance state and broadcasts removal of a deleted instance.
-    func handleDelete(for component: any InstanceComponent, modelID: UUID) async {
+    func handleDelete(for component: any MistInstanceComponent, modelID: UUID) async {
         
         Task.detached {
             await app.mist.clients.clearState(for: modelID.uuidString)
-            await app.mist.clients.broadcast(Message.InstanceDelete(component: component.name, modelID: modelID))
+            await app.mist.clients.broadcast(MistMessage.InstanceDelete(component: component.name, modelID: modelID))
         }
     }
     
