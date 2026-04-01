@@ -17,7 +17,7 @@ final class MistIntegrationTests: XCTestCase
         app.views.use(.leaf)
         
         // register multiple components with dublicate
-        await app.mist.components.registerComponents([DumbComp4133()], with: app)
+        await app.mist.components.registerComponents([DumbComp4133()])
         
         // test this client message
         let subscriptionMessage = #"{ "subscribe": { "component": "DumbComp4133" } }"#
@@ -32,18 +32,17 @@ final class MistIntegrationTests: XCTestCase
             let clientID = UUID()
             
             // use API to add client to internal storage
-            await app.mist.clients.addClient(id: clientID, socket: ws)
+            await app.mist.clients.addClient(clientID: clientID, socket: ws)
             
             // get internal storage
             let clients = await app.mist.clients.clients
             
             // test internal storage after adding client
             XCTAssertEqual(clients.count, 1, "Only one client should exist")
-            XCTAssertEqual(clients[0].id, clientID, "Client ID should match")
+            XCTAssertEqual(clients[0].clientID, clientID, "Client ID should match")
             XCTAssertEqual(clients[0].subscriptions.count, 0, "Client should not have subscriptions")
             
-            ws.onText()
-            { ws, text async in
+            ws.onText { ws, text async in
                 print("*** server receiving message: \(text)")
                 
                 // make sure sent client message and received server message match
@@ -117,7 +116,9 @@ final class MistIntegrationTests: XCTestCase
         try await app.autoMigrate()
         
         // configure mist with our test component
-        await app.mist.use(TestComponent())
+        try await app.mist.use {
+            TestComponent()
+        }
         
         // subscription message
         let subscriptionMessage = #"{ "subscribe": { "component": "TestComponent" } }"#
@@ -150,11 +151,10 @@ final class MistIntegrationTests: XCTestCase
             
             // add client to registry
             let clientID = UUID()
-            await app.mist.clients.addClient(id: clientID, socket: ws)
+            await app.mist.clients.addClient(clientID: clientID, socket: ws)
             
             // handle client messages
-            ws.onText()
-            { ws, text async in
+            ws.onText { ws, text async in
                 print("*** Server receiving: \(text)")
                 
                 // decode subscription message
@@ -202,8 +202,7 @@ final class MistIntegrationTests: XCTestCase
             do { try await ws.send(subscriptionMessage) } catch { return await test.fail("Failed to send subscription message") }
             
             // Handle incoming messages from server
-            ws.onText
-            { ws, text async in
+            ws.onText { ws, text async in
                 print("*** Client received server message...")
                 
                 // decode to Mist.Message
@@ -211,9 +210,9 @@ final class MistIntegrationTests: XCTestCase
                 guard let message = try? JSONDecoder().decode(Mist.Message.self, from: data) else { return await test.fail("Error decoding") }
   
                 // verify instance update message
-                guard case .updateInstanceComponent(let component, let id, let html) = message else { return await test.fail("Wrong Mist.Message received") }
+                guard case .updateInstanceComponent(let component, let receivedModelID, let html) = message else { return await test.fail("Wrong Mist.Message received") }
                 guard component == "TestComponent" else { return await test.fail("Wrong Component received") }
-                guard id == modelID else { return await test.fail("Wrong model ID received") }
+                guard receivedModelID == modelID else { return await test.fail("Wrong model ID received") }
                 
                 print("*** Client received HTML:\n\(html)")
 
@@ -275,12 +274,11 @@ struct TestComponent: Mist.InstanceComponent
 
     let template: Template = .inline(template:
         """
-        <div mist-component="TestComponent" mist-id="#(component.dummymodel1.id)">
-            <span>#(component.dummymodel1.id)</span>
-            <span>#(component.dummymodel1.text)</span>
-            <span>#(component.dummymodel2.text2)</span>
+        <div mist-component="TestComponent" mist-id="#(context.dummymodel1.id)">
+            <span>#(context.dummymodel1.id)</span>
+            <span>#(context.dummymodel1.text)</span>
+            <span>#(context.dummymodel2.text2)</span>
         </div>
         """)
 
 }
-

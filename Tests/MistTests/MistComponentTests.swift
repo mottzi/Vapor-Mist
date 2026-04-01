@@ -6,13 +6,13 @@ import Leaf
 import FluentSQLiteDriver
 @testable import Mist
 
-struct MyComponent: Mist.InstanceComponent
+struct MyComponent: InstanceComponent
 {
     let models: [any Mist.Model.Type] = [DummyModel1.self, DummyModel2.self]
 }
 
 final class MistComponentTests: XCTestCase
-{    
+{
     func testMakeContextSingle() async throws
     {
         // set up application and database
@@ -27,7 +27,7 @@ final class MistComponentTests: XCTestCase
         try await app.autoMigrate()
         
         // configure mist with our test component
-        await app.mist.components.registerComponents([MyComponent()], with: app)
+        await app.mist.components.registerComponents([MyComponent()])
         
         // Start the server
         try await app.startup()
@@ -42,18 +42,18 @@ final class MistComponentTests: XCTestCase
         try await model1.save(on: app.db)
         try await model2.save(on: app.db)
         
-        guard let context = await MyComponent().makeContext(of: modelID, in: app.db) else { return XCTFail("No context") }
+        guard let context = await MyComponent().makeContext(using: modelID, on: app.db) else { return XCTFail("No context") }
         
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        if let jsonData = try? encoder.encode(context.component),
+        if let jsonData = try? encoder.encode(context.context),
            let jsonString = String(data: jsonData, encoding: .utf8)
         {
             print(jsonString)
         }
         
         // decode component to a dictionary for assertions
-        guard let jsonData = try? JSONEncoder().encode(context.component),
+        guard let jsonData = try? JSONEncoder().encode(context.context),
               let component = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] else
         {
             XCTFail("Could not decode component to dictionary")
@@ -103,7 +103,7 @@ final class MistComponentTests: XCTestCase
         
         app.migrations.add(DummyModel1.Table(), DummyModel2.Table())
         try await app.autoMigrate()
-        await app.mist.components.registerComponents([MyComponent()], with: app)
+        await app.mist.components.registerComponents([MyComponent()])
         
         // Start the server
         try await app.startup()
@@ -120,14 +120,14 @@ final class MistComponentTests: XCTestCase
         // define component template
         let template =
         """
-        <tr id="#(component.dummymodel1.id)">
-            <td>#(component.dummymodel1.text)</td>
-            <td>#(component.dummymodel2.text2)</td>
+        <tr id="#(context.dummymodel1.id)">
+            <td>#(context.dummymodel1.text)</td>
+            <td>#(context.dummymodel2.text2)</td>
         </tr>
         """
         
         // get component data context
-        guard let context = await MyComponent().makeContext(of: modelID, in: app.db) else { return XCTFail("Failed to create context") }
+        guard let context = await MyComponent().makeContext(using: modelID, on: app.db) else { return XCTFail("Failed to create context") }
 
         // get the real LeafRenderer from the app
         guard let leafRenderer = app.view as? LeafRenderer else { return XCTFail("Failed to get LeafRenderer from app") }

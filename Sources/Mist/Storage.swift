@@ -1,6 +1,6 @@
 import Vapor
 
-extension Mist {
+extension MistInterface {
     
     /// Vapor storage for Mist runtime state and configuration.
     final class Storage: @unchecked Sendable {
@@ -27,7 +27,7 @@ extension Mist {
     
 }
 
-extension Mist {
+extension MistInterface {
 
     private struct ClientsKey: LockKey {}
     private struct ComponentsKey: LockKey {}
@@ -98,7 +98,7 @@ extension Mist {
     
 }
 
-extension Mist {
+extension MistInterface {
     
     /// User-configurable websocket registration settings.
     public struct SocketConfiguration {

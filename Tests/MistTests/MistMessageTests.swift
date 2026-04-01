@@ -50,7 +50,7 @@ final class MistMessageTests: XCTestCase
         {
             "updateInstanceComponent": {
                 "component": "TestComponent",
-                "id": "\(testUUID)",
+                "modelID": "\(testUUID)",
                 "html": "<div>Updated content</div>"
             }
         }
@@ -61,11 +61,11 @@ final class MistMessageTests: XCTestCase
         guard let message = try? JSONDecoder().decode(Mist.Message.self, from: data) else { return XCTFail("Failed to decode data to Mist message") }
         
         // Verify the message is of correct type
-        guard case .updateInstanceComponent(let component, let id, let html) = message else { return XCTFail("Valid but non-updateInstanceComponent message") }
+        guard case .updateInstanceComponent(let component, let modelID, let html) = message else { return XCTFail("Valid but non-updateInstanceComponent message") }
         
         // Verify all fields match expected values
         XCTAssertEqual(component, "TestComponent", "Component name should match expected value")
-        XCTAssertEqual(id, testUUID, "UUID should match expected value")
+        XCTAssertEqual(modelID, testUUID, "UUID should match expected value")
         XCTAssertEqual(html, "<div>Updated content</div>", "HTML content should match expected value")
     }
     
@@ -78,7 +78,7 @@ final class MistMessageTests: XCTestCase
         // Create an instance update message
         let updateMessage = Mist.Message.updateInstanceComponent(
             component: "TestComponent",
-            id: testUUID,
+            modelID: testUUID,
             html: "<div>Updated content</div>"
         )
         
@@ -94,7 +94,7 @@ final class MistMessageTests: XCTestCase
             return XCTFail("updateInstanceComponent should be a dictionary")
         }
         XCTAssertEqual(updateDict["component"] as? String, "TestComponent", "Component should match")
-        XCTAssertEqual(updateDict["id"] as? String, testUUID.uuidString, "UUID should match")
+        XCTAssertEqual(updateDict["modelID"] as? String, testUUID.uuidString, "UUID should match")
         XCTAssertEqual(updateDict["html"] as? String, "<div>Updated content</div>", "HTML should match")
         XCTAssertEqual(dict.count, 1, "JSON should have 1 key (the case name)")
     }

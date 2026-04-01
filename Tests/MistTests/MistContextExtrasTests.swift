@@ -22,7 +22,7 @@ final class TestModelWithExtras: Mist.Model, Content, @unchecked Sendable
         self.count = count
     }
     
-    var contextExtras: [String: any Encodable]
+    var computedProperties: [String: any Encodable]
     {
         [
             "extraString": "computed value",
@@ -79,9 +79,9 @@ final class MistContextExtrasTests: XCTestCase
         let model = TestModelWithExtras(id: modelID, name: "Test Model", count: 100)
         try await model.save(on: app.db)
         
-        // Create a ModelContainer and add the model
-        var container = ModelContainer()
-        container.add(model, for: "testmodel")
+        // Create a ModelContext and add the model
+        var container = ModelContext()
+        container.add(model, as: TestModelWithExtras.self)
         
         // Encode the container to JSON
         let encoder = JSONEncoder()
@@ -91,14 +91,14 @@ final class MistContextExtrasTests: XCTestCase
               let jsonString = String(data: jsonData, encoding: .utf8)
         else
         {
-            return XCTFail("Could not encode ModelContainer to JSON")
+            return XCTFail("Could not encode ModelContext to JSON")
         }
         
         print("Encoded JSON:\n\(jsonString)")
         
         // Decode to dictionary for assertions
         guard let decoded = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
-              let testModel = decoded["testmodel"] as? [String: Any]
+              let testModel = decoded["testmodelwithextras"] as? [String: Any]
         else
         {
             return XCTFail("Could not decode JSON to dictionary")
@@ -159,7 +159,7 @@ final class MistContextExtrasTests: XCTestCase
         
         try await app.startup()
         
-        // Create a simple model that doesn't override contextExtras
+        // Create a simple model that doesn't override computedProperties
         final class SimpleModel: Mist.Model, Content, @unchecked Sendable
         {
             static let schema = "simple_models"
@@ -179,15 +179,15 @@ final class MistContextExtrasTests: XCTestCase
         let modelID = UUID()
         let model = SimpleModel(id: modelID, value: "simple")
         
-        // Create a ModelContainer and add the model
-        var container = ModelContainer()
-        container.add(model, for: "simple")
+        // Create a ModelContext and add the model
+        var container = ModelContext()
+        container.add(model, as: SimpleModel.self)
         
         // Encode the container
         let encoder = JSONEncoder()
         guard let jsonData = try? encoder.encode(container),
               let decoded = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
-              let simpleModel = decoded["simple"] as? [String: Any]
+              let simpleModel = decoded["simplemodel"] as? [String: Any]
         else
         {
             return XCTFail("Could not encode/decode simple model")
@@ -231,7 +231,7 @@ final class MistContextExtrasTests: XCTestCase
                 self.title = title
             }
             
-            var contextExtras: [String: any Encodable]
+            var computedProperties: [String: any Encodable]
             {
                 struct NestedData: Encodable
                 {
@@ -249,8 +249,8 @@ final class MistContextExtrasTests: XCTestCase
         let modelID = UUID()
         let model = ComplexExtrasModel(id: modelID, title: "Complex Test")
         
-        var container = ModelContainer()
-        container.add(model, for: "complex")
+        var container = ModelContext()
+        container.add(model, as: ComplexExtrasModel.self)
         
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -265,7 +265,7 @@ final class MistContextExtrasTests: XCTestCase
         print("Complex Extras JSON:\n\(jsonString)")
         
         guard let decoded = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
-              let complexModel = decoded["complex"] as? [String: Any]
+              let complexModel = decoded["complexextrasmodel"] as? [String: Any]
         else
         {
             return XCTFail("Could not decode complex model")
@@ -292,4 +292,3 @@ final class MistContextExtrasTests: XCTestCase
         try await app.asyncShutdown()
     }
 }
-

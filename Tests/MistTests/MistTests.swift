@@ -10,12 +10,12 @@ extension Components
 {
     func registerWOListenerForTesting(_ component: any Mist.InstanceComponent) 
     {
-        guard !components.contains(where: { $0.name == component.name }) else { return }
-        components.append(component)
+        guard componentsByName[component.name] == nil else { return }
+        componentsByName[component.name] = component
 
         for model in component.models {
             let key = ObjectIdentifier(model)
-            modelToComponents[key, default: []].append(component)
+            modelToInstanceComponents[key, default: []].append(component)
         }
     }
 }

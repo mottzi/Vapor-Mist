@@ -4,11 +4,11 @@ import LeafKit
 public extension Application {
     
     /// Main access point in Vapor applications.
-    var mist: Mist { Mist(app: self) }
+    var mist: MistInterface { MistInterface(app: self) }
     
 }
 
-public struct Mist {
+public struct MistInterface {
     
     let app: Application
     

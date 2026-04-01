@@ -13,7 +13,7 @@ public enum Template: Sendable {
     
 }
 
-extension Mist {
+extension MistInterface {
     
     /// Registers inline templates with Leaf, using the name of the component. Preserves the default file-backed source.
     func registerTemplates(for components: [any Component]) async throws {
