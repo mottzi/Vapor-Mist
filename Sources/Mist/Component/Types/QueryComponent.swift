@@ -1,0 +1,34 @@
+import Vapor
+import Fluent
+
+/// A fragment-backed unit resolved from a query.
+public protocol QueryComponent: FragmentComponent, ModelComponent {
+    
+    /// Model type returned by the query.
+    associatedtype FragmentModel: Model
+    
+    /// Returns the model currently backing this fragment.
+    func query(on db: Database) async -> FragmentModel?
+    
+}
+
+public extension QueryComponent {
+    
+    /// Default: tracks only the queried model type.
+    var models: [any Model.Type] { [FragmentModel.self] }
+    
+}
+
+public extension QueryComponent {
+    
+    /// Renders the fragment for the model currently returned by `query(on:)`.
+    func renderCurrent(app: Application) async -> String? {
+        
+        guard let model = await query(on: app.db),
+              let modelID = model.id
+        else { return nil }
+        
+        return await render(with: modelID, state: [:], on: app.db, using: app.leaf.renderer)
+    }
+    
+}

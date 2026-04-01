@@ -1,4 +1,4 @@
-// Move this file (mist.js) to: /Public
+// Move this file (mist.js) to: /Public 
 
 class MistSocket {
 
@@ -8,6 +8,7 @@ class MistSocket {
 
         this.timer = null;
         this.initialDelay = 1000;
+        this.interval = 1000;
 
         document.addEventListener('visibilitychange', () => this.visibilityChange());
         window.addEventListener('online', () => this.connect());
@@ -66,21 +67,50 @@ class MistSocket {
 
     // NEW: Boots global behaviors (timers, etc.)
     bootBehaviors() {
+        this.bootDateTimes();
         this.bootTimers();
+        this.bootInfoOverlays();
+    }
+
+    bootDateTimes() {
+        const timeFormatter = new Intl.DateTimeFormat(undefined, {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        });
+        const dateFormatter = new Intl.DateTimeFormat(undefined, {
+            day: '2-digit',
+            month: '2-digit',
+            year: '2-digit'
+        });
+
+        document.querySelectorAll('[mist-behavior="local-datetime"]').forEach(element => {
+            const unixMs = Number.parseInt(element.dataset.startedAtUnixMs, 10);
+            if (Number.isNaN(unixMs)) return;
+
+            const date = new Date(unixMs);
+            const timeElement = element.querySelector('.dp-time-value');
+            const dateElement = element.querySelector('.dp-time-date');
+
+            if (timeElement) {
+                timeElement.textContent = timeFormatter.format(date);
+            }
+
+            if (dateElement) {
+                dateElement.textContent = dateFormatter.format(date);
+            }
+        });
     }
 
     bootTimers() {
-        const referenceDateOffset = 978307200; // seconds between 1970 and 2001 reference dates
         document.querySelectorAll('[mist-behavior="timer"]').forEach(element => {
             if (element._mistTimer) return;
-            // Expects encoded Swift Date (CFAbsoluteTime: seconds since 2001-01-01)
-            const swiftTimestamp = parseFloat(element.dataset.startTimestamp);
-            if (Number.isNaN(swiftTimestamp)) return;
+            const unixMs = Number.parseInt(element.dataset.startedAtUnixMs, 10);
+            if (Number.isNaN(unixMs)) return;
 
-            const startedAt = swiftTimestamp + referenceDateOffset;
             const update = () => {
-                const now = Date.now() / 1000;
-                const elapsed = Math.max(now - startedAt, 0);
+                const elapsed = Math.max((Date.now() - unixMs) / 1000, 0);
                 element.textContent = `${elapsed.toFixed(1)}s`;
             };
 
@@ -106,6 +136,234 @@ class MistSocket {
         });
     }
 
+    bootInfoOverlays() {
+        document.querySelectorAll('[mist-behavior="info-overlay"]').forEach(element => {
+            if (element._mistInfoOverlay) return;
+
+            const trigger = element.querySelector('[data-mist-overlay-trigger]');
+            const panel = element.querySelector('[data-mist-overlay-panel]');
+
+            if (!trigger || !panel) return;
+
+            element._mistInfoOverlay = true;
+            this.setInfoOverlayState(element, false);
+
+            // Desktop: hover open/close
+            element.addEventListener('mouseenter', () => {
+                this.openInfoOverlay(element);
+            });
+
+            element.addEventListener('mouseleave', () => {
+                this.deferInfoOverlaySync(element);
+            });
+
+            element.addEventListener('focusin', () => {
+                this.openInfoOverlay(element);
+            });
+
+            element.addEventListener('focusout', () => {
+                this.deferInfoOverlaySync(element);
+            });
+
+            // Touch: tap trigger to toggle, tap outside to close
+            trigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isOpen = element.dataset.overlayOpen === 'true';
+                // Close any other open overlays
+                document.querySelectorAll('[mist-behavior="info-overlay"][data-overlay-open="true"]').forEach(other => {
+                    if (other !== element) this.closeInfoOverlay(other);
+                });
+                if (isOpen) {
+                    this.closeInfoOverlay(element);
+                } else {
+                    this.openInfoOverlay(element);
+                }
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!element.contains(e.target) && element.dataset.overlayOpen === 'true') {
+                    this.closeInfoOverlay(element);
+                }
+            });
+        });
+    }
+
+    getInfoOverlayParts(element) {
+        if (!(element instanceof Element)) return null;
+
+        const trigger = element.querySelector('[data-mist-overlay-trigger]');
+        const panel = element.querySelector('[data-mist-overlay-panel]');
+
+        if (!(trigger instanceof Element) || !(panel instanceof Element)) {
+            return null;
+        }
+
+        return { trigger, panel };
+    }
+
+    setInfoOverlayState(element, open) {
+        const parts = this.getInfoOverlayParts(element);
+        if (!parts) return;
+
+        element.dataset.overlayOpen = open ? 'true' : 'false';
+        parts.trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+        parts.panel.setAttribute('aria-hidden', open ? 'false' : 'true');
+    }
+
+    openInfoOverlay(element) {
+        this.setInfoOverlayState(element, true);
+        this.positionInfoPopover(element);
+    }
+
+    positionInfoPopover(element) {
+        const panel = element.querySelector('[data-mist-overlay-panel]');
+        if (!panel) return;
+
+        // Only apply dynamic positioning on mobile (matches CSS breakpoint)
+        if (window.innerWidth > 640) {
+            panel.style.top = '';
+            return;
+        }
+
+        const trigger = element.querySelector('[data-mist-overlay-trigger]');
+        if (!trigger) return;
+
+        const rect = trigger.getBoundingClientRect();
+        const gap = 8;
+        const popoverHeight = panel.scrollHeight || 300;
+        const viewportH = window.innerHeight;
+
+        // Prefer below the trigger; if not enough room, place above
+        let top = rect.bottom + gap;
+        if (top + popoverHeight > viewportH - 16) {
+            top = Math.max(16, rect.top - gap - popoverHeight);
+        }
+
+        panel.style.top = `${top}px`;
+    }
+
+    closeInfoOverlay(element) {
+        this.setInfoOverlayState(element, false);
+    }
+
+    syncInfoOverlayState(element) {
+        if (!(element instanceof Element)) return;
+
+        if (element.matches(':hover') || element.matches(':focus-within')) {
+            this.openInfoOverlay(element);
+            return;
+        }
+
+        this.closeInfoOverlay(element);
+    }
+
+    deferInfoOverlaySync(element) {
+        window.requestAnimationFrame(() => {
+            this.syncInfoOverlayState(element);
+        });
+    }
+
+    parseSortValue(rawValue, sortType) {
+        if (rawValue === null || rawValue === undefined || rawValue === '') {
+            return null;
+        }
+
+        if (sortType === 'number') {
+            const numericValue = Number.parseFloat(rawValue);
+            return Number.isNaN(numericValue) ? null : numericValue;
+        }
+
+        return rawValue;
+    }
+
+    findSortableCollection(element) {
+        if (!(element instanceof Element)) return null;
+        return element.closest('[mist-behavior="sortable-collection"]');
+    }
+
+    scheduleSortableCollectionReorder(collection) {
+        if (!(collection instanceof Element)) return;
+
+        const delayRawValue = collection.dataset.mistSortDelayMs;
+        const parsedDelay = Number.parseInt(delayRawValue ?? '0', 10);
+        const delayMs = Number.isNaN(parsedDelay) ? 0 : Math.max(parsedDelay, 0);
+
+        if (collection._mistSortTimer) {
+            clearTimeout(collection._mistSortTimer);
+            collection._mistSortTimer = null;
+        }
+
+        if (delayMs === 0) {
+            this.reorderSortableCollection(collection);
+            return;
+        }
+
+        collection._mistSortTimer = setTimeout(() => {
+            collection._mistSortTimer = null;
+            this.reorderSortableCollection(collection);
+        }, delayMs);
+    }
+
+    reorderSortableCollection(collection) {
+        if (!(collection instanceof Element)) return;
+
+        const sortOrder = collection.dataset.mistSortOrder || 'asc';
+        const sortType = collection.dataset.mistSortType || 'number';
+        const sortableItems = Array.from(collection.children).filter(child =>
+            child.hasAttribute('data-mist-sort-value')
+        );
+
+        if (sortableItems.length < 2) return;
+
+        const indexedItems = sortableItems.map((element, index) => ({
+            element,
+            index,
+            value: this.parseSortValue(element.getAttribute('data-mist-sort-value'), sortType)
+        }));
+
+        const sortedItems = [...indexedItems].sort((left, right) => {
+            if (left.value === null && right.value === null) return left.index - right.index;
+            if (left.value === null) return 1;
+            if (right.value === null) return -1;
+
+            if (left.value === right.value) return left.index - right.index;
+
+            if (sortOrder === 'desc') {
+                return left.value > right.value ? -1 : 1;
+            }
+
+            return left.value < right.value ? -1 : 1;
+        });
+
+        const orderChanged = sortedItems.some((item, index) => item.element !== sortableItems[index]);
+        if (!orderChanged) return;
+
+        // Preserve the positions of non-sortable siblings while reordering only sortable ones.
+        const markers = sortableItems.map(element => {
+            const marker = document.createComment('mist-sort-slot');
+            collection.insertBefore(marker, element);
+            return marker;
+        });
+
+        sortedItems.forEach((item, index) => {
+            collection.insertBefore(item.element, markers[index]);
+            markers[index].remove();
+        });
+    }
+
+    reorderCollectionsForElements(elements) {
+        const collections = new Set();
+
+        elements.forEach(element => {
+            const collection = this.findSortableCollection(element);
+            if (collection) {
+                collections.add(collection);
+            }
+        });
+
+        collections.forEach(collection => this.scheduleSortableCollectionReorder(collection));
+    }
+
     handleAction(event) {
 
         const target = event.target.closest('[mist-action]');
@@ -121,9 +379,9 @@ class MistSocket {
 
         const componentName = componentElement.getAttribute('mist-component');
         // 2. ID can now be null, which is valid
-        const componentId = componentElement.getAttribute('mist-id');
+        const targetID = componentElement.getAttribute('mist-id');
 
-        // 3. Only require componentName. componentId is optional.
+        // 3. Only require componentName. targetID is optional.
         if (!componentName) return;
 
         if (this.isConnected()) {
@@ -131,7 +389,7 @@ class MistSocket {
             const message = {
                 action: {
                     component: componentName,
-                    id: componentId, // Will correctly send `id: null` if not found
+                    targetID: targetID, // Will correctly send `targetID: null` if not found
                     action: actionName
                 }
             };
@@ -139,7 +397,7 @@ class MistSocket {
             this.socket.send(JSON.stringify(message));
 
             // 4. Update log message to handle null ID
-            const idLog = componentId ? componentId.substring(0, 8) : 'null';
+            const idLog = targetID ? targetID.substring(0, 8) : 'null';
             console.log(`[Client] Action sent to server: ${componentName}.${actionName} (${idLog})`);
         }
     }
@@ -169,9 +427,8 @@ class MistSocket {
 
                 const data = JSON.parse(event.data);
 
-                // Instance-based component messages (with ID)
                 if (data.createInstanceComponent) {
-                    const { component, id, html } = data.createInstanceComponent;
+                    const { component, modelID, html } = data.createInstanceComponent;
 
                     // Ensure the generated HTML actually belongs to the channel it was broadcasted on
                     if (!html.includes(`mist-component="${component}"`)) {
@@ -179,33 +436,34 @@ class MistSocket {
                         return;
                     }
 
-                    const existingElements = document.querySelectorAll(this.buildComponentSelector(component, id));
+                    const existingElements = document.querySelectorAll(this.buildComponentSelector(component, modelID));
 
                     // If component already exists, treat as update
                     if (existingElements.length > 0) {
                         existingElements.forEach(element => {
                             morphdom(element, html);
                         });
-                        console.log(`[Client] Component updated: ${component} (${id.substring(0, 8)})`);
+                        this.reorderCollectionsForElements(Array.from(existingElements));
+                        console.log(`[Client] Component updated: ${component} (${modelID.substring(0, 8)})`);
                     } else {
                         // Find container that accepts this component
                         const containers = document.querySelectorAll('[mist-container]');
-
                         for (const container of containers) {
                             const acceptedComponents = container.getAttribute('mist-container').split(',').map(c => c.trim());
-
                             if (acceptedComponents.includes(component)) {
                                 // Check for custom insertion position (default: 'beforeend' to append)
                                 const insertPosition = container.getAttribute('mist-insert-position') || 'beforeend';
                                 container.insertAdjacentHTML(insertPosition, html);
-                                console.log(`[Client] Component created: ${component} (${id.substring(0, 8)})`);
+                                const insertedElements = document.querySelectorAll(this.buildComponentSelector(component, modelID));
+                                this.reorderCollectionsForElements(Array.from(insertedElements));
+                                console.log(`[Client] Component created: ${component} (${modelID.substring(0, 8)})`);
                                 break;
                             }
                         }
                     }
                 }
                 else if (data.updateInstanceComponent) {
-                    const { component, id, html } = data.updateInstanceComponent;
+                    const { component, modelID, html } = data.updateInstanceComponent;
 
                     // Prevent WebSocket Crossover Updates
                     if (!html.includes(`mist-component="${component}"`)) {
@@ -213,23 +471,24 @@ class MistSocket {
                         return;
                     }
 
-                    const elements = document.querySelectorAll(this.buildComponentSelector(component, id));
+                    const elements = document.querySelectorAll(this.buildComponentSelector(component, modelID));
 
                     elements.forEach(element => {
                         morphdom(element, html);
                     });
+                    this.reorderCollectionsForElements(Array.from(elements));
 
-                    console.log(`[Client] Component updated: ${component} (${id.substring(0, 8)})`);
+                    console.log(`[Client] Component updated: ${component} (${modelID.substring(0, 8)})`);
                 }
                 else if (data.deleteInstanceComponent) {
-                    const { component, id } = data.deleteInstanceComponent;
-                    const elements = document.querySelectorAll(this.buildComponentSelector(component, id));
+                    const { component, modelID } = data.deleteInstanceComponent;
+                    const elements = document.querySelectorAll(this.buildComponentSelector(component, modelID));
 
                     elements.forEach(element => {
                         element.remove();
                     });
 
-                    console.log(`[Client] Component deleted: ${component} (${id.substring(0, 8)})`);
+                    console.log(`[Client] Component deleted: ${component} (${modelID.substring(0, 8)})`);
                 }
                 // Query-based component messages (no ID)
                 else if (data.updateQueryComponent) {
@@ -270,10 +529,10 @@ class MistSocket {
                     console.log(`[Client] Component deleted: ${component}`);
                 }
                 else if (data.actionResult) {
-                    const { component, id, action, result, message } = data.actionResult;
+                    const { component, targetID, action, result, message } = data.actionResult;
                     const isSuccess = result.success !== undefined;
                     const resultType = isSuccess ? '✅' : '❌';
-                    const idLog = id ? id.substring(0, 8) : 'null';
+                    const idLog = targetID ? targetID.substring(0, 8) : 'null';
 
                     console.log(`[Server] Action result ${resultType}: ${component}.${action} (${idLog}, ${message})`);
                 }
@@ -304,7 +563,7 @@ class MistSocket {
                 this.timer = setInterval(() => {
                     this.connect();
                 },
-                    this.interval);
+                this.interval);
             },
                 this.initialDelay);
         };
@@ -342,10 +601,11 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Construct full URL
-    const protocol = 'wss://';
+    const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
     const host = window.location.host;
     const url = `${protocol}${host}${path}`;
 
     window.ws = new MistSocket({ url: url });
+    window.ws.bootBehaviors();
     window.ws.connect();
 });
