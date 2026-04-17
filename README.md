@@ -52,7 +52,7 @@ import Vapor
 import Fluent
 import Mist
 
-final class DummyModel1: MistModel, Content
+final class DummyModel1: Mist.Model, Content
 {
     static let schema = "dummymodel1"
     
@@ -101,7 +101,7 @@ import Mist
 
 struct DummyComponent: Mist.Component
 {
-    static let models: [any MistModel.Type] = [
+    static let models: [any Mist.Model.Type] = [
         DummyModel1.self,
         DummyModel2.self
     ]
@@ -255,9 +255,9 @@ Simply copy this file to your application's /Public directory.
 
 - Type-safe component registration using protocols ([MistComponent.swift](Sources/Mist/MistComponent.swift))
 - Actor-based client and component registries for thread safety ([MistClients.swift](Sources/Mist/MistClients.swift), [MistComponents.swift](Sources/Mist/MistComponents.swift))
-- Fluent database listener middleware configuration ([MistModelListener.swift](Sources/Mist/MistModelListener.swift))
+- Fluent database listener middleware configuration ([Mist.ModelListener.swift](Sources/Mist/Mist.ModelListener.swift))
 - Leaf template rendering for component HTML generation ([MistComponent.swift](Sources/Mist/MistComponent.swift))
-- JSON-based message protocol for communication over websockets ([MistSocket.swift](Sources/Mist/MistSocket.swift), [MistMessage.swift](Sources/Mist/MistMessage.swift))
+- JSON-based message protocol for communication over websockets ([MistSocket.swift](Sources/Mist/MistSocket.swift), [Mist.Message.swift](Sources/Mist/Mist.Message.swift))
 
 **Known Limitations**:
 
@@ -287,11 +287,11 @@ This prototype contains eight .swift and one .js file:
 // MistComponents.swift:    central component registry
 
 // MistComponent.swift:     context generation, html rendering
-// MistModel.swift:         context generation
-// MistModelListener.swift:      database update detection, messaging
+// Mist.Model.swift:         context generation
+// Mist.ModelListener.swift:      database update detection, messaging
 
 // MistSocket.swift:        web socket server, handles client component subscriptions
-// MistMessage.swift:       type safe client-server-client communication over web sockets
+// Mist.Message.swift:       type safe client-server-client communication over web sockets
 ```
 
 ```swift

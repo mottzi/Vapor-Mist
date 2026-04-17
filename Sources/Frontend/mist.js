@@ -65,11 +65,10 @@ class MistSocket {
         }
     }
 
-    // NEW: Boots global behaviors (timers, etc.)
+    // Boots global behaviors (timers, etc.)
     bootBehaviors() {
         this.bootDateTimes();
         this.bootTimers();
-        this.bootInfoOverlays();
     }
 
     bootDateTimes() {
@@ -133,133 +132,6 @@ class MistSocket {
 
                 update();
             }, 100);
-        });
-    }
-
-    bootInfoOverlays() {
-        document.querySelectorAll('[mist-behavior="info-overlay"]').forEach(element => {
-            if (element._mistInfoOverlay) return;
-
-            const trigger = element.querySelector('[data-mist-overlay-trigger]');
-            const panel = element.querySelector('[data-mist-overlay-panel]');
-
-            if (!trigger || !panel) return;
-
-            element._mistInfoOverlay = true;
-            this.setInfoOverlayState(element, false);
-
-            // Desktop: hover open/close
-            element.addEventListener('mouseenter', () => {
-                this.openInfoOverlay(element);
-            });
-
-            element.addEventListener('mouseleave', () => {
-                this.deferInfoOverlaySync(element);
-            });
-
-            element.addEventListener('focusin', () => {
-                this.openInfoOverlay(element);
-            });
-
-            element.addEventListener('focusout', () => {
-                this.deferInfoOverlaySync(element);
-            });
-
-            // Touch: tap trigger to toggle, tap outside to close
-            trigger.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const isOpen = element.dataset.overlayOpen === 'true';
-                // Close any other open overlays
-                document.querySelectorAll('[mist-behavior="info-overlay"][data-overlay-open="true"]').forEach(other => {
-                    if (other !== element) this.closeInfoOverlay(other);
-                });
-                if (isOpen) {
-                    this.closeInfoOverlay(element);
-                } else {
-                    this.openInfoOverlay(element);
-                }
-            });
-
-            document.addEventListener('click', (e) => {
-                if (!element.contains(e.target) && element.dataset.overlayOpen === 'true') {
-                    this.closeInfoOverlay(element);
-                }
-            });
-        });
-    }
-
-    getInfoOverlayParts(element) {
-        if (!(element instanceof Element)) return null;
-
-        const trigger = element.querySelector('[data-mist-overlay-trigger]');
-        const panel = element.querySelector('[data-mist-overlay-panel]');
-
-        if (!(trigger instanceof Element) || !(panel instanceof Element)) {
-            return null;
-        }
-
-        return { trigger, panel };
-    }
-
-    setInfoOverlayState(element, open) {
-        const parts = this.getInfoOverlayParts(element);
-        if (!parts) return;
-
-        element.dataset.overlayOpen = open ? 'true' : 'false';
-        parts.trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
-        parts.panel.setAttribute('aria-hidden', open ? 'false' : 'true');
-    }
-
-    openInfoOverlay(element) {
-        this.setInfoOverlayState(element, true);
-        this.positionInfoPopover(element);
-    }
-
-    positionInfoPopover(element) {
-        const panel = element.querySelector('[data-mist-overlay-panel]');
-        if (!panel) return;
-
-        // Only apply dynamic positioning on mobile (matches CSS breakpoint)
-        if (window.innerWidth > 640) {
-            panel.style.top = '';
-            return;
-        }
-
-        const trigger = element.querySelector('[data-mist-overlay-trigger]');
-        if (!trigger) return;
-
-        const rect = trigger.getBoundingClientRect();
-        const gap = 8;
-        const popoverHeight = panel.scrollHeight || 300;
-        const viewportH = window.innerHeight;
-
-        // Prefer below the trigger; if not enough room, place above
-        let top = rect.bottom + gap;
-        if (top + popoverHeight > viewportH - 16) {
-            top = Math.max(16, rect.top - gap - popoverHeight);
-        }
-
-        panel.style.top = `${top}px`;
-    }
-
-    closeInfoOverlay(element) {
-        this.setInfoOverlayState(element, false);
-    }
-
-    syncInfoOverlayState(element) {
-        if (!(element instanceof Element)) return;
-
-        if (element.matches(':hover') || element.matches(':focus-within')) {
-            this.openInfoOverlay(element);
-            return;
-        }
-
-        this.closeInfoOverlay(element);
-    }
-
-    deferInfoOverlaySync(element) {
-        window.requestAnimationFrame(() => {
-            this.syncInfoOverlayState(element);
         });
     }
 

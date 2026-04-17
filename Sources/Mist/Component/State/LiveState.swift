@@ -2,7 +2,7 @@ import Vapor
 
 /// Actor that isolates context state for fragment components. Publishes updates to clients upon mutation.
 /// Runtime installs render and broadcast hooks during registration.
-public actor MistLiveState<State: MistComponentData> {
+public actor LiveState<State: ComponentData> {
     
     /// Current fragment state used for rendering and broadcasting updates.
     private var state: State
@@ -13,7 +13,7 @@ public actor MistLiveState<State: MistComponentData> {
     /// Broadcast hook used to publish rendered HTML to subscribed clients.
     private var broadcast: ((String) async -> Void)?
     
-    public init(state: State) {
+    public init(of state: State) {
         self.state = state
     }
     
@@ -37,8 +37,10 @@ public actor MistLiveState<State: MistComponentData> {
         guard newState != state else { return }
         
         state = newState
+        let snapshot = state
         
-        guard let html = await render(state) else { return }
+        guard let html = await render(snapshot) else { return }
+        guard state == snapshot else { return }
         await broadcast(html)
     }
     

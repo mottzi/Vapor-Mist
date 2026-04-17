@@ -1,58 +1,59 @@
 import Vapor
 
 /// Vapor storage for Mist runtime state and configuration.
-final private class MistStorage: @unchecked Sendable {
+final private class Storage: @unchecked Sendable {
     
-    var clients: MistClients?
-    var components: MistComponents?
+    struct Key: StorageKey { typealias Value = Storage }
+
+    var clients: Clients?
+    var components: Components?
     var socketPath: [PathComponent]?
     var shouldUpgrade: (@Sendable (Request) async -> HTTPHeaders?)?
     var socketMiddleware: (any Middleware)?
+    var socketRegistered: Bool = false
     
     init() {}
     
 }
 
-private struct MistStorageKey: StorageKey { typealias Value = MistStorage }
-
-extension Mist {
+extension MistInterface {
 
     /// Returns the Vapor storage container for Mist.
-    private var _storage: MistStorage {
-        if let existing = app.storage[MistStorageKey.self] { return existing }
-        let new = MistStorage()
-        app.storage[MistStorageKey.self] = new
+    private var _storage: Storage {
+        if let existing = app.storage[Storage.Key.self] { return existing }
+        let new = Storage()
+        app.storage[Storage.Key.self] = new
         return new
     }
     
 }
 
-extension Mist {
+extension MistInterface {
 
     private struct ClientsKey: LockKey {}
     private struct ComponentsKey: LockKey {}
     private struct SocketPathKey: LockKey {}
     private struct ShouldUpgradeKey: LockKey {}
     private struct SocketMiddlewareKey: LockKey {}
+    private struct SocketRegisteredKey: LockKey {}
     
-    var _clients: MistClients {
+    var _clients: Clients {
         app.locks.lock(for: ClientsKey.self).withLock {
             if let existing = _storage.clients { return existing }
-            let new = MistClients(components: _components)
+            let new = Clients(components: _components, logger: app.logger)
             _storage.clients = new
             return new
         }
     }
 
-    var _components: MistComponents {
+    var _components: Components {
         app.locks.lock(for: ComponentsKey.self).withLock {
             if let existing = _storage.components { return existing }
-            let new = MistComponents(app: app)
+            let new = Components(app: app)
             _storage.components = new
             return new
         }
     }
-
     var _socket: MistSocketConfiguration {
         MistSocketConfiguration(app: app)
     }
@@ -95,10 +96,18 @@ extension Mist {
             }
         }
     }
+
+    func registerSocketIfNeeded() {
+        app.locks.lock(for: SocketRegisteredKey.self).withLock {
+            guard !_storage.socketRegistered else { return }
+            _storage.socketRegistered = true
+            Socket.register(with: app)
+        }
+    }
     
 }
 
-extension Mist {
+extension MistInterface {
     
     /// User-configurable websocket registration settings.
     public struct MistSocketConfiguration {

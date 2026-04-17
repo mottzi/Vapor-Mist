@@ -1,39 +1,39 @@
 import Vapor
 import Fluent
 
-extension MistModel {
+extension Model {
     
     /// Registers the model listener used to refresh components after database changes.
     static func registerListener(with app: Application) {
-        let listener = MistModelListener<Self>(app: app)
+        let listener = ModelListener<Self>(app: app)
         app.databases.middleware.use(listener)
     }
     
 }
 
 /// Database interceptor that forwards model events into component updates.
-struct MistModelListener<M: MistModel>: AsyncModelMiddleware {
+struct ModelListener<M: Model>: AsyncModelMiddleware {
     
     let app: Application
 
     func create(model: M, on db: Database, next: AnyAsyncModelResponder) async throws {
         try await next.create(model, on: db)
-        Task.detached { await handle(.creation, of: model) }
+        await handle(.creation, of: model)
     }
 
     func update(model: M, on db: Database, next: AnyAsyncModelResponder) async throws {
         try await next.update(model, on: db)
-        Task.detached { await handle(.update, of: model) }
+        await handle(.update, of: model)
     }
 
     func delete(model: M, force: Bool, on db: any Database, next: any AnyAsyncModelResponder) async throws {
         try await next.delete(model, force: force, on: db)
-        Task.detached { await handle(.deletion, of: model) }
+        await handle(.deletion, of: model)
     }
     
 }
 
-extension MistModelListener
+extension ModelListener
 {
     enum ModelEvent { case creation, update, deletion }
     
@@ -59,39 +59,42 @@ extension MistModelListener
     
 }
 
-extension MistModelListener {
+extension ModelListener {
     
     /// Renders and sends a newly created instance to subscribed clients.
-    func handleCreate(for component: any MistInstanceComponent, modelID: UUID) async {
-        
-        for subscriber in await app.mist.clients.getSubscribers(of: component.name) {
-            Task.detached {
-                let state = await app.mist.clients.getState(for: subscriber.clientID, componentID: modelID.uuidString, default: component.defaultState)
-                guard let html = await component.render(with: modelID, state: state, on: app.db, using: app.leaf.renderer) else { return }
-                await app.mist.clients.send(MistMessage.InstanceCreate(component: component.name, modelID: modelID, html: html), to: subscriber.clientID)
+    func handleCreate(for component: any InstanceComponent, modelID: UUID) async {
+        let subscribers = await app.mist.clients.getSubscribers(of: component.name)
+
+        await withTaskGroup(of: Void.self) { group in
+            for subscriber in subscribers {
+                group.addTask {
+                    let state = await app.mist.clients.getState(for: subscriber.clientID, componentID: modelID.uuidString, default: component.defaultState)
+                    guard case .rendered(let html) = await component.render(with: modelID, state: state, on: app) else { return }
+                    await app.mist.clients.send(Message.InstanceCreate(component: component.name, modelID: modelID, html: html), to: subscriber.clientID)
+                }
             }
         }
     }
     
     /// Renders and sends updated HTML for an existing instance to subscribed clients.
-    func handleUpdate(for component: any MistInstanceComponent, modelID: UUID) async {
-        
-        for subscriber in await app.mist.clients.getSubscribers(of: component.name) {
-            Task.detached {
-                let state = await app.mist.clients.getState(for: subscriber.clientID, componentID: modelID.uuidString, default: component.defaultState)
-                guard let html = await component.render(with: modelID, state: state, on: app.db, using: app.leaf.renderer) else { return }
-                await app.mist.clients.send(MistMessage.InstanceUpdate(component: component.name, modelID: modelID, html: html), to: subscriber.clientID)
+    func handleUpdate(for component: any InstanceComponent, modelID: UUID) async {
+        let subscribers = await app.mist.clients.getSubscribers(of: component.name)
+
+        await withTaskGroup(of: Void.self) { group in
+            for subscriber in subscribers {
+                group.addTask {
+                    let state = await app.mist.clients.getState(for: subscriber.clientID, componentID: modelID.uuidString, default: component.defaultState)
+                    guard case .rendered(let html) = await component.render(with: modelID, state: state, on: app) else { return }
+                    await app.mist.clients.send(Message.InstanceUpdate(component: component.name, modelID: modelID, html: html), to: subscriber.clientID)
+                }
             }
         }
     }
     
     /// Clears per-instance state and broadcasts removal of a deleted instance.
-    func handleDelete(for component: any MistInstanceComponent, modelID: UUID) async {
-        
-        Task.detached {
-            await app.mist.clients.clearState(for: modelID.uuidString)
-            await app.mist.clients.broadcast(MistMessage.InstanceDelete(component: component.name, modelID: modelID))
-        }
+    func handleDelete(for component: any InstanceComponent, modelID: UUID) async {
+        await app.mist.clients.clearState(for: modelID.uuidString, subscribedTo: component.name)
+        await app.mist.clients.broadcast(Message.InstanceDelete(component: component.name, modelID: modelID))
     }
     
 }

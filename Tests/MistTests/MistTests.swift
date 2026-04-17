@@ -6,9 +6,9 @@ import LeafKit
 @testable import Mist
 
 #if DEBUG
-extension MistComponents
+extension Mist.Components
 {
-    func registerWOListenerForTesting(_ component: any MistInstanceComponent) 
+    func registerWOListenerForTesting(_ component: any Mist.InstanceComponent)
     {
         guard componentsByName[component.name] == nil else { return }
         componentsByName[component.name] = component
@@ -28,7 +28,7 @@ func registerAndRenderTemplate<E: Encodable>(
 ) async throws -> String {
 
     // Create an in-memory template source (just like production TemplateSource)
-    let templateSource = TemplateSource()
+    let templateSource = LeafTemplateSource()
     await templateSource.register(name: name, template: content)
 
     // Get the renderer's existing sources

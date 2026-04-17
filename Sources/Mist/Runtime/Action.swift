@@ -1,17 +1,17 @@
 import Vapor
 
 /// A function defined by components that can be triggered by the client and run on the server.
-public protocol MistAction: Sendable {
+public protocol Action: Sendable {
     
     /// Runtime name used to invoke this action.
     var name: String { get }
     
     /// The action to perform, optionally scoped to a specific runtime target, exposing mutable per-client state.
-    func perform(targetID: UUID?, state: inout MistComponentState, app: Application) async -> MistActionResult
+    func perform(targetID: UUID?, state: inout ComponentState, app: Application) async -> ActionResult
     
 }
 
-public extension MistAction {
+public extension Action {
     
     /// Default action name derived from the Swift type name.
     var name: String { String(describing: Self.self) }
@@ -19,7 +19,7 @@ public extension MistAction {
 }
 
 /// Outcome reported back after performing an action.
-public enum MistActionResult: Codable, Sendable {
+public enum ActionResult: Codable, Sendable {
     
     /// The action completed successfully.
     case success(_ message: String? = nil)

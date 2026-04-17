@@ -6,9 +6,9 @@ import Leaf
 import FluentSQLiteDriver
 @testable import Mist
 
-struct MyComponent: MistInstanceComponent
+struct MyComponent: Mist.InstanceComponent
 {
-    let models: [any MistModel.Type] = [DummyModel1.self, DummyModel2.self]
+    let models: [any Mist.Model.Type] = [DummyModel1.self, DummyModel2.self]
 }
 
 final class MistComponentTests: XCTestCase
@@ -42,7 +42,7 @@ final class MistComponentTests: XCTestCase
         try await model1.save(on: app.db)
         try await model2.save(on: app.db)
         
-        guard let context = await MyComponent().makeContext(using: modelID, on: app.db) else { return XCTFail("No context") }
+        guard let context = try await MyComponent().makeContext(using: modelID, on: app.db) else { return XCTFail("No context") }
         
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -127,7 +127,7 @@ final class MistComponentTests: XCTestCase
         """
         
         // get component data context
-        guard let context = await MyComponent().makeContext(using: modelID, on: app.db) else { return XCTFail("Failed to create context") }
+        guard let context = try await MyComponent().makeContext(using: modelID, on: app.db) else { return XCTFail("Failed to create context") }
 
         // get the real LeafRenderer from the app
         guard let leafRenderer = app.view as? LeafRenderer else { return XCTFail("Failed to get LeafRenderer from app") }
