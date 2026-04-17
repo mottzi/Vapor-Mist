@@ -62,7 +62,7 @@ public enum RenderResult: Sendable {
     case failed
     
     /// Extracts rendered HTML from RenderOutcome if available.
-    var html: String? { if case let .rendered(html) = self { html } else { nil } }
+    public var html: String? { if case let .rendered(html) = self { html } else { nil } }
 
 }
 
