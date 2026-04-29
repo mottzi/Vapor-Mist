@@ -16,6 +16,9 @@ public struct MistInterface {
     
     /// Accesses the runtime component registry.
     var components: Components { _components }
+
+    /// Accesses append-only runtime streams.
+    var streams: Streams { _streams }
     
     /// User-configurable socket configuration used for endpoint registration.
     public var socket: MistSocketConfiguration { _socket }

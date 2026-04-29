@@ -5,6 +5,7 @@ class MistSocket {
     constructor(config) {
         this.config = config;
         this.socket = null;
+        this.streamBuffers = new Map();
 
         this.timer = null;
         this.initialDelay = 1000;
@@ -135,6 +136,63 @@ class MistSocket {
         });
     }
 
+    streamKey(component, modelID, stream) {
+        return `${component}\u0000${modelID}\u0000${stream}`;
+    }
+
+    rememberStream(component, modelID, stream, text) {
+        const key = this.streamKey(component, modelID, stream);
+        this.streamBuffers.set(key, { component, modelID, stream, text });
+        return key;
+    }
+
+    replaceStream(component, modelID, stream, text) {
+        this.rememberStream(component, modelID, stream, text);
+        this.setStreamText(component, modelID, stream, text);
+    }
+
+    appendStream(component, modelID, stream, text) {
+        if (!text) return;
+
+        const key = this.streamKey(component, modelID, stream);
+        const existing = this.streamBuffers.get(key);
+        const nextText = (existing?.text || '') + text;
+        this.streamBuffers.set(key, { component, modelID, stream, text: nextText });
+
+        this.findStreamTargets(component, modelID, stream).forEach(target => {
+            target.appendChild(document.createTextNode(text));
+            this.scrollStreamTargetToBottom(target);
+        });
+    }
+
+    closeStream(component, modelID, stream) {
+        this.streamBuffers.delete(this.streamKey(component, modelID, stream));
+    }
+
+    restoreStreams() {
+        this.streamBuffers.forEach(({ component, modelID, stream, text }) => {
+            this.setStreamText(component, modelID, stream, text);
+        });
+    }
+
+    setStreamText(component, modelID, stream, text) {
+        this.findStreamTargets(component, modelID, stream).forEach(target => {
+            target.textContent = text;
+            this.scrollStreamTargetToBottom(target);
+        });
+    }
+
+    findStreamTargets(component, modelID, stream) {
+        const selector = `${this.buildComponentSelector(component, modelID)} [mist-stream="${this.escapeAttributeValue(stream)}"]`;
+        return Array.from(document.querySelectorAll(selector));
+    }
+
+    scrollStreamTargetToBottom(target) {
+        if (!(target instanceof HTMLElement)) return;
+        if (target.offsetParent === null && target.getClientRects().length === 0) return;
+        target.scrollTop = target.scrollHeight;
+    }
+
     parseSortValue(rawValue, sortType) {
         if (rawValue === null || rawValue === undefined || rawValue === '') {
             return null;
@@ -244,8 +302,15 @@ class MistSocket {
 
         const actionName = target.getAttribute('mist-action');
 
-        // 1. Find component, but ID is now optional
-        const componentElement = target.closest('[mist-component]');
+        // 1. Find component: ancestor with [mist-component], or [mist-actions-for="Name"] for detached controls
+        let componentElement = target.closest('[mist-component]');
+        if (!componentElement && target.hasAttribute('mist-actions-for')) {
+            const ref = target.getAttribute('mist-actions-for');
+            if (ref) {
+                const safe = ref.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+                componentElement = document.querySelector('[mist-component="' + safe + '"]');
+            }
+        }
 
         if (!componentElement || !actionName) return;
 
@@ -298,6 +363,7 @@ class MistSocket {
             try {
 
                 const data = JSON.parse(event.data);
+                let mutatedHTML = false;
 
                 if (data.createInstanceComponent) {
                     const { component, modelID, html } = data.createInstanceComponent;
@@ -315,6 +381,7 @@ class MistSocket {
                         existingElements.forEach(element => {
                             morphdom(element, html);
                         });
+                        mutatedHTML = true;
                         this.reorderCollectionsForElements(Array.from(existingElements));
                         console.log(`[Client] Component updated: ${component} (${modelID.substring(0, 8)})`);
                     } else {
@@ -327,6 +394,7 @@ class MistSocket {
                                 const insertPosition = container.getAttribute('mist-insert-position') || 'beforeend';
                                 container.insertAdjacentHTML(insertPosition, html);
                                 const insertedElements = document.querySelectorAll(this.buildComponentSelector(component, modelID));
+                                mutatedHTML = true;
                                 this.reorderCollectionsForElements(Array.from(insertedElements));
                                 console.log(`[Client] Component created: ${component} (${modelID.substring(0, 8)})`);
                                 break;
@@ -348,6 +416,7 @@ class MistSocket {
                     elements.forEach(element => {
                         morphdom(element, html);
                     });
+                    mutatedHTML = true;
                     this.reorderCollectionsForElements(Array.from(elements));
 
                     console.log(`[Client] Component updated: ${component} (${modelID.substring(0, 8)})`);
@@ -372,6 +441,7 @@ class MistSocket {
                         existingElements.forEach(element => {
                             morphdom(element, html);
                         });
+                        mutatedHTML = true;
                         console.log(`[Client] Component updated: ${component}`);
                     } else {
                         // Find container that accepts this component
@@ -384,6 +454,7 @@ class MistSocket {
                                 // Check for custom insertion position (default: 'beforeend' to append)
                                 const insertPosition = container.getAttribute('mist-insert-position') || 'beforeend';
                                 container.insertAdjacentHTML(insertPosition, html);
+                                mutatedHTML = true;
                                 console.log(`[Client] Component created: ${component}`);
                                 break;
                             }
@@ -399,6 +470,21 @@ class MistSocket {
                     });
 
                     console.log(`[Client] Component deleted: ${component}`);
+                }
+                else if (data.replaceStream) {
+                    const { component, modelID, stream, text } = data.replaceStream;
+                    this.replaceStream(component, modelID, stream, text);
+                    console.log(`[Client] Stream replaced: ${component}.${stream} (${modelID.substring(0, 8)})`);
+                }
+                else if (data.appendStream) {
+                    const { component, modelID, stream, text } = data.appendStream;
+                    this.appendStream(component, modelID, stream, text);
+                    console.log(`[Client] Stream appended: ${component}.${stream} (${modelID.substring(0, 8)})`);
+                }
+                else if (data.closeStream) {
+                    const { component, modelID, stream } = data.closeStream;
+                    this.closeStream(component, modelID, stream);
+                    console.log(`[Client] Stream closed: ${component}.${stream} (${modelID.substring(0, 8)})`);
                 }
                 else if (data.actionResult) {
                     const { component, targetID, action, result, message } = data.actionResult;
@@ -416,6 +502,9 @@ class MistSocket {
                     console.log(`[Client] Unhandled server message (raw): ${event.data}`);
                 }
 
+                if (mutatedHTML) {
+                    this.restoreStreams();
+                }
                 this.bootBehaviors();
             }
             catch (error) {
@@ -443,11 +532,16 @@ class MistSocket {
 
     // Helper function to build component selector
     buildComponentSelector(component, id) {
+        const safeComponent = this.escapeAttributeValue(component);
         if (id) {
-            return `[mist-component="${component}"][mist-id="${id}"]`;
+            return `[mist-component="${safeComponent}"][mist-id="${this.escapeAttributeValue(id)}"]`;
         } else {
-            return `[mist-component="${component}"]`;
+            return `[mist-component="${safeComponent}"]`;
         }
+    }
+
+    escapeAttributeValue(value) {
+        return String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
     }
 
     visibilityChange() {

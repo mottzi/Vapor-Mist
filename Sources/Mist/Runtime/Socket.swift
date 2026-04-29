@@ -68,6 +68,7 @@ extension Socket.Connection {
         
         guard success else { return }
         await app.mist.components.sendCurrentSubscriptionState(for: component, to: clientID)
+        await app.mist.streams.sendSnapshots(for: component, to: clientID)
     }
 
     /// Performs a component action and sends any resulting updates back to the client.

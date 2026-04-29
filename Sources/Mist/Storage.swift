@@ -7,6 +7,7 @@ final private class Storage: @unchecked Sendable {
 
     var clients: Clients?
     var components: Components?
+    var streams: Streams?
     var socketPath: [PathComponent]?
     var shouldUpgrade: (@Sendable (Request) async -> HTTPHeaders?)?
     var socketMiddleware: (any Middleware)?
@@ -32,6 +33,7 @@ extension MistInterface {
 
     private struct ClientsKey: LockKey {}
     private struct ComponentsKey: LockKey {}
+    private struct StreamsKey: LockKey {}
     private struct SocketPathKey: LockKey {}
     private struct ShouldUpgradeKey: LockKey {}
     private struct SocketMiddlewareKey: LockKey {}
@@ -54,6 +56,16 @@ extension MistInterface {
             return new
         }
     }
+
+    var _streams: Streams {
+        app.locks.lock(for: StreamsKey.self).withLock {
+            if let existing = _storage.streams { return existing }
+            let new = Streams(app: app)
+            _storage.streams = new
+            return new
+        }
+    }
+
     var _socket: MistSocketConfiguration {
         MistSocketConfiguration(app: app)
     }
