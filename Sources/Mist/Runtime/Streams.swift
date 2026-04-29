@@ -11,7 +11,7 @@ public actor Streams {
         self.app = app
     }
 
-    func replace(component: String, modelID: UUID, stream: String, text: String) async {
+    public func replace(component: String, modelID: UUID, stream: String, text: String) async {
         
         let key = StreamKey(
             component: component,
@@ -31,7 +31,7 @@ public actor Streams {
         await app.mist.clients.broadcast(message)
     }
 
-    func append(component: String, modelID: UUID, stream: String, text: String) async {
+    public func append(component: String, modelID: UUID, stream: String, text: String) async {
         
         guard !text.isEmpty else { return }
 
@@ -53,7 +53,7 @@ public actor Streams {
         await app.mist.clients.broadcast(message)
     }
 
-    func close(component: String, modelID: UUID, stream: String) async {
+    public func close(component: String, modelID: UUID, stream: String) async {
         
         let key = StreamKey(
             component: component,
