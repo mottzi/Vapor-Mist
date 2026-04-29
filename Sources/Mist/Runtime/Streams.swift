@@ -1,7 +1,7 @@
 import Vapor
 
 /// Append-only text streams scoped to a component instance.
-actor Streams {
+public actor Streams {
 
     let app: Application
     
