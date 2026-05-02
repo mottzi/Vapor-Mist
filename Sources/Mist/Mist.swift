@@ -24,7 +24,7 @@ public struct MistInterface {
     public var socket: MistSocketConfiguration { _socket }
 
     /// Prepares the Mist runtime. Registers components, their templates, and the websocket endpoint.
-    public func use(@ComponentBuilder _ components: () -> [any Component]) async throws {
+    public func use(@ComponentBuilder _ components: @Sendable () -> [any Component]) async throws {
         
         let components = components()
         try await prepareLeafTemplates(for: components)
