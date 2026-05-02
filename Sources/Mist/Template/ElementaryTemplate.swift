@@ -48,6 +48,10 @@ public extension HTMLAttribute where Tag: HTMLTrait.Attributes.Global {
         HTMLAttribute(name: "mist-component", value: value)
     }
     
+    static func mistAction(value: String) -> HTMLAttribute {
+        HTMLAttribute(name: "mist-action", value: value)
+    }
+    
 }
 
 /// Derives an Elementary-backed template from `body(state:)` for live components.
