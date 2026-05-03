@@ -64,7 +64,7 @@ public struct LiveComponentView<C: LiveComponent>: HTML, Sendable where C.Body: 
         self.state = state
     }
 
-    public var content: some HTML {
+    public var content: C.Body {
         component.body(state: state)
     }
 }
@@ -95,7 +95,7 @@ public struct ManualComponentView<C: ManualComponent>: HTML, Sendable where C.Bo
         self.state = state
     }
 
-    public var content: some HTML {
+    public var content: C.Body {
         component.body(state: state)
     }
 }
@@ -126,7 +126,7 @@ public struct PollingComponentView<C: PollingComponent>: HTML, Sendable where C.
         self.context = context
     }
 
-    public var content: some HTML {
+    public var content: C.Body {
         component.body(context: context)
     }
 }
