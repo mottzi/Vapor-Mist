@@ -1,5 +1,4 @@
 import Elementary
-import Foundation
 import Vapor
 
 /// Typed adapter that renders Mist component contexts with Elementary.
@@ -49,23 +48,23 @@ public extension HTMLAttribute where Tag: HTMLTrait.Attributes.Global {
     }
 }
 
-// MARK: - Unified Mist View Wrapper
+// MARK: - Direct Vapor Integration
 
-/// A unified wrapper that hides the opaque HTML return types for Mist components.
-/// It bridges the gap between Elementary's type inference and Vapor's strict concurrency rules,
-/// bypassing the `Never` fallback bug and removing the need for `& Sendable` user boilerplate.
-public struct MistComponentView<Content: HTML>: HTML, @unchecked Sendable {
-    
-    // By storing the HTML as the explicit generic parameter `Content`,
-    // Swift perfectly satisfies the `associatedtype Content` protocol witness.
-    private let _content: Content
+/// A lightweight, thread-safe container that bridges Mist components directly to Vapor,
+/// completely bypassing Swift's associated type resolution bugs.
+public struct MistResponseView<Content: HTML>: AsyncResponseEncodable, @unchecked Sendable {
+    private let content: Content
 
     public init(_ content: Content) {
-        self._content = content
+        self.content = content
     }
 
-    public var content: Content {
-        _content
+    /// Renders the HTML directly into a Vapor Response without passing through the HTML protocol again.
+    public func encodeResponse(for request: Request) async throws -> Response {
+        let htmlString = content.render()
+        let response = Response(status: .ok, body: .init(string: htmlString))
+        response.headers.contentType = .html
+        return response
     }
 }
 
@@ -77,9 +76,9 @@ public extension LiveComponent where Body: HTML {
         ElementaryTemplate<FragmentState, Body> { [self] state in body(state: state) }
     }
 
-    /// Helper to render the component safely in concurrent Vapor routes.
-    func view(state: FragmentState) -> MistComponentView<Body> {
-        MistComponentView(self.body(state: state))
+    /// Helper to render the component directly as a Vapor Response.
+    func view(state: FragmentState) -> MistResponseView<Body> {
+        MistResponseView(self.body(state: state))
     }
 }
 
@@ -89,9 +88,9 @@ public extension ManualComponent where Body: HTML {
         ElementaryTemplate<FragmentState, Body> { [self] state in body(state: state) }
     }
 
-    /// Helper to render the component safely in concurrent Vapor routes.
-    func view(state: FragmentState) -> MistComponentView<Body> {
-        MistComponentView(self.body(state: state))
+    /// Helper to render the component directly as a Vapor Response.
+    func view(state: FragmentState) -> MistResponseView<Body> {
+        MistResponseView(self.body(state: state))
     }
 }
 
@@ -101,8 +100,8 @@ public extension PollingComponent where Body: HTML {
         ElementaryTemplate<FragmentContext, Body> { [self] context in body(context: context) }
     }
 
-    /// Helper to render the component safely in concurrent Vapor routes.
-    func view(context: FragmentContext) -> MistComponentView<Body> {
-        MistComponentView(self.body(context: context))
+    /// Helper to render the component directly as a Vapor Response.
+    func view(context: FragmentContext) -> MistResponseView<Body> {
+        MistResponseView(self.body(context: context))
     }
 }
