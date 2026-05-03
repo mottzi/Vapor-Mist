@@ -6,8 +6,8 @@ public protocol ManualComponent: FragmentComponent {
     /// State type rendered by this fragment.
     associatedtype FragmentState: ComponentData
 
-    /// HTML body type returned by Elementary-backed components. Defaults to `Never` for Leaf-backed components.
-    associatedtype Body = Never
+    /// HTML body type returned by Elementary-backed components. Defaults to `LeafRenderPath` for Leaf-backed components.
+    associatedtype Body = LeafRenderPath
 
     /// Shared state rendered and synchronized for this fragment.
     var state: LiveState<FragmentState> { get }
@@ -24,10 +24,10 @@ public extension ManualComponent {
 
 }
 
-public extension ManualComponent where Body == Never {
+public extension ManualComponent where Body == LeafRenderPath {
 
     /// Leaf path: body is never called.
-    func body(state: FragmentState) -> Never { fatalError() }
+    func body(state: FragmentState) -> LeafRenderPath { fatalError("Leaf components do not use a body function") }
 
 }
 

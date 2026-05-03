@@ -7,8 +7,8 @@ public protocol PollingComponent: FragmentComponent {
     /// Context type returned by each polling pass.
     associatedtype FragmentContext: ComponentData
 
-    /// HTML body type returned by Elementary-backed components. Defaults to `Never` for Leaf-backed components.
-    associatedtype Body = Never
+    /// HTML body type returned by Elementary-backed components. Defaults to `LeafRenderPath` for Leaf-backed components.
+    associatedtype Body = LeafRenderPath
 
     /// Interval between polling passes.
     var refreshInterval: Duration { get }
@@ -28,10 +28,10 @@ public extension PollingComponent {
 
 }
 
-public extension PollingComponent where Body == Never {
+public extension PollingComponent where Body == LeafRenderPath {
 
     /// Leaf path: body is never called.
-    func body(context: FragmentContext) -> Never { fatalError() }
+    func body(context: FragmentContext) -> LeafRenderPath { fatalError("Leaf components do not use a body function") }
 
 }
 
