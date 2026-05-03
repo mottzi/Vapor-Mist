@@ -10,6 +10,7 @@ class MistSocket {
         this.timer = null;
         this.initialDelay = 1000;
         this.interval = 1000;
+        this.hasConnectedOnce = false;
 
         document.addEventListener('visibilitychange', () => this.visibilityChange());
         window.addEventListener('online', () => this.connect());
@@ -20,15 +21,16 @@ class MistSocket {
 
         console.log("[Client] Scanning DOM and subscribing to components");
 
-        const uniqueComponents = new Set();
+        const uniqueComponents = new Map();
 
         // Subscribe to existing components
         document.querySelectorAll('[mist-component]').forEach(element => {
 
             const component = element.getAttribute('mist-component');
+            const ssrReady = !this.hasConnectedOnce && element.getAttribute('mist-ssr') === 'true';
 
             if (component) {
-                uniqueComponents.add(component);
+                uniqueComponents.set(component, ssrReady);
             }
         });
 
@@ -36,29 +38,31 @@ class MistSocket {
         document.querySelectorAll('[mist-container]').forEach(container => {
 
             const acceptedComponents = container.getAttribute('mist-container');
+            const ssrReady = !this.hasConnectedOnce && container.getAttribute('mist-ssr') === 'true';
 
             if (acceptedComponents) {
                 acceptedComponents.split(',').forEach(component => {
                     const trimmed = component.trim();
-                    if (trimmed) {
-                        uniqueComponents.add(trimmed);
+                    if (trimmed && !uniqueComponents.has(trimmed)) {
+                        uniqueComponents.set(trimmed, ssrReady);
                     }
                 });
             }
         });
 
-        uniqueComponents.forEach(component => {
-            this.subscribe(component);
+        uniqueComponents.forEach((ssrReady, component) => {
+            this.subscribe(component, ssrReady);
         });
     }
 
-    subscribe(component) {
+    subscribe(component, ssrReady = false) {
 
         if (this.isConnected()) {
 
             const message = {
                 subscribe: {
-                    component: component
+                    component: component,
+                    ssrReady: ssrReady
                 }
             };
 
@@ -357,6 +361,7 @@ class MistSocket {
             this.subscribeToPageComponents();
 
             this.bootBehaviors();
+            this.hasConnectedOnce = true;
         };
 
         this.socket.onmessage = (event) => {

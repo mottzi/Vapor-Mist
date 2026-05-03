@@ -43,8 +43,8 @@ extension Socket.Connection {
         catch { app.logger.warning("\(MistError.messageDecodeFailed(text, error))"); return }
         
         switch message {
-            case .subscribe(let component):
-                await handleSubscription(of: component)
+            case .subscribe(let component, let ssrReady):
+                await handleSubscription(of: component, ssrReady: ssrReady)
             
             case .action(let component, let targetID, let action):
                 await handleAction(action, of: component, on: targetID)
@@ -57,8 +57,8 @@ extension Socket.Connection {
 
 extension Socket.Connection {
 
-    /// Registers a client's component subscription with the runtime. Sends the current fragment when available.
-    func handleSubscription(of component: String) async {
+    /// Registers a client's component subscription with the runtime. Sends the current fragment when needed.
+    func handleSubscription(of component: String, ssrReady: Bool) async {
         
         let success = await app.mist.clients.addSubscription(component, to: clientID)
         let response = success
@@ -67,7 +67,9 @@ extension Socket.Connection {
         await app.mist.clients.send(response, to: clientID)
         
         guard success else { return }
-        await app.mist.components.sendCurrentSubscriptionState(for: component, to: clientID)
+        if !ssrReady {
+            await app.mist.components.sendCurrentSubscriptionState(for: component, to: clientID)
+        }
         await app.mist.streams.sendSnapshots(for: component, to: clientID)
     }
 

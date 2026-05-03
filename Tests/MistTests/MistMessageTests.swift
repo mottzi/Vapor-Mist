@@ -9,21 +9,22 @@ final class MistMessageTests: XCTestCase
     // tests decoding json subscription message to Mist.Message type
     func testSubscriptionDecoding() async
     {
-        let text = #"{ "subscribe": { "component": "TestComponent2" } }"#
+        let text = #"{ "subscribe": { "component": "TestComponent2", "ssrReady": true } }"#
         
         // try to decode json message to mist subscribe message
         guard let data = text.data(using: .utf8) else { return XCTFail("Failed to convert JSON string to data") }
         guard let message = try? JSONDecoder().decode(Mist.Message.self, from: data) else { return XCTFail("Failed to decode data to Mist message") }
-        guard case .subscribe(let component) = message else { return XCTFail("Valid but non-subscribe message") }
+        guard case .subscribe(let component, let ssrReady) = message else { return XCTFail("Valid but non-subscribe message") }
 
         XCTAssertEqual(component, "TestComponent2", "Mist message component should match JSON component string")
+        XCTAssertTrue(ssrReady, "Mist message should preserve the SSR readiness flag")
     }
     
     // tests encoding Mist.Message.subscribe to json
     func testSubscriptionEncoding() async
     {
         // Create a subscription message
-        let subscriptionMessage = Mist.Message.subscribe(component: "TestComponent2")
+        let subscriptionMessage = Mist.Message.subscribe(component: "TestComponent2", ssrReady: true)
         
         // Encode the message to JSON
         guard let jsonData = try? JSONEncoder().encode(subscriptionMessage) else { return XCTFail("Failed to encode subscription message") }
@@ -35,6 +36,7 @@ final class MistMessageTests: XCTestCase
         XCTAssertNotNil(dict["subscribe"], "Should have 'subscribe' key")
         guard let subscribeDict = dict["subscribe"] as? [String: Any] else { return XCTFail("Subscribe should be a dictionary") }
         XCTAssertEqual(subscribeDict["component"] as? String, "TestComponent2", "Component should match")
+        XCTAssertEqual(subscribeDict["ssrReady"] as? Bool, true, "SSR readiness should match")
         XCTAssertEqual(dict.count, 1, "JSON should only have 1 key (the case name)")
     }
     

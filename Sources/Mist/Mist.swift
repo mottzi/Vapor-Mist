@@ -4,6 +4,11 @@ public extension Application {
     
     /// Main access point in Vapor applications.
     var mist: MistInterface { MistInterface(app: self) }
+
+    /// Resolves a registered fragment component by type for server-side rendering.
+    func mistComponent<C: FragmentComponent>(_ type: C.Type) async -> C? {
+        await mist.components.getComponent(named: String(describing: type)) as? C
+    }
     
 }
 

@@ -15,6 +15,14 @@ public extension FragmentComponent {
     
     /// Default: actions do not suppress automatic fragment refresh.
     var pausesDuringAction: Bool { false }
+
+    /// Renders the fragment for server-side inlining before the socket takes over.
+    func renderInitial(app: Application) async -> String? {
+        switch await renderCurrent(app: app) {
+            case .rendered(let html): return html
+            case .absent, .failed: return nil
+        }
+    }
     
 }
 

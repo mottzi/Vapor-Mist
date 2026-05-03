@@ -20,7 +20,7 @@ final class MistIntegrationTests: XCTestCase
         await app.mist.components.registerComponents([DumbComp4133()])
         
         // test this client message
-        let subscriptionMessage = #"{ "subscribe": { "component": "DumbComp4133" } }"#
+        let subscriptionMessage = #"{ "subscribe": { "component": "DumbComp4133", "ssrReady": false } }"#
         
         // set up websocket on server
         app.webSocket("socket")
@@ -55,10 +55,11 @@ final class MistIntegrationTests: XCTestCase
                 switch message
                 {
                     // ensure correct decoding
-                    case .subscribe(let component): do
+                    case .subscribe(let component, let ssrReady): do
                     {
                         // test correct decoding of component name
                         XCTAssertEqual(component, "DumbComp4133", "Mist message component should match JSON component string")
+                        XCTAssertFalse(ssrReady, "Mist message SSR readiness should match JSON flag")
                         
                         // use API to add client sent component name to client's subscription set
                         let added = await app.mist.clients.addSubscription(component, to: clientID)
@@ -121,7 +122,7 @@ final class MistIntegrationTests: XCTestCase
         }
         
         // subscription message
-        let subscriptionMessage = #"{ "subscribe": { "component": "TestComponent" } }"#
+        let subscriptionMessage = #"{ "subscribe": { "component": "TestComponent", "ssrReady": false } }"#
         
         // create component models
         let modelID = UUID()
@@ -164,7 +165,8 @@ final class MistIntegrationTests: XCTestCase
                     return await test.fail("Failed to decode client message")
                 }
                 
-                guard case .subscribe(let component) = message else { return await test.fail("Unsupported message type") }
+                guard case .subscribe(let component, let ssrReady) = message else { return await test.fail("Unsupported message type") }
+                XCTAssertFalse(ssrReady, "Mist message SSR readiness should match JSON flag")
     
                 // add subscription
                 let added = await app.mist.clients.addSubscription(component, to: clientID)
