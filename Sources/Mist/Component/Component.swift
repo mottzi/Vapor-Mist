@@ -20,7 +20,7 @@ public protocol Component: Sendable {
 public extension Component {
     
     /// Default component name derived from the Swift type name.
-    var name: String { String(describing: Self.self) }
+    var name: String { String(describing: Self.self) } // asses using type(of:)
     
     /// Default template is a file with path matching `name`.
     var template: any Template { LeafTemplate.file(name) }
