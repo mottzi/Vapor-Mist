@@ -30,6 +30,9 @@ public actor Clients {
 
 extension Clients {
     
+    /// The number of currently connected clients.
+    public var count: Int { clients.count }
+    
     /// A connected client and its current subscriptions.
     struct Client {
         
