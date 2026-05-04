@@ -17,10 +17,10 @@ public struct MistInterface {
     let app: Application
     
     /// Accesses the runtime client registry.
-    var clients: Clients { _clients }
+    public var clients: Clients { _clients }
     
     /// Accesses the runtime component registry.
-    var components: Components { _components }
+    public var components: Components { _components }
 
     /// Accesses append-only runtime streams.
     public var streams: Streams { _streams }

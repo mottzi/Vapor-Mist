@@ -33,6 +33,10 @@ extension Clients {
     /// The number of currently connected clients.
     public var count: Int { clients.count }
     
+}
+
+extension Clients {
+    
     /// A connected client and its current subscriptions.
     struct Client {
         
