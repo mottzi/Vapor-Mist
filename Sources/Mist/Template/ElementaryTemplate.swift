@@ -44,12 +44,61 @@ enum ElementaryError: LocalizedError {
 
 public extension HTMLAttribute where Tag: HTMLTrait.Attributes.Global {
     
-    static func mistComponent(value: String) -> HTMLAttribute {
+    static func mistComponent(_ value: String) -> HTMLAttribute {
         HTMLAttribute(name: "mist-component", value: value)
     }
     
-    static func mistAction(value: String) -> HTMLAttribute {
+    static func mistId(_ value: String) -> HTMLAttribute {
+        HTMLAttribute(name: "mist-id", value: value)
+    }
+    
+    static func mistAction(_ value: String) -> HTMLAttribute {
         HTMLAttribute(name: "mist-action", value: value)
+    }
+
+    static func mistActionsFor(_ component: String) -> HTMLAttribute {
+        HTMLAttribute(name: "mist-actions-for", value: component)
+    }
+
+    static func mistSSR(_ value: Bool = true) -> HTMLAttribute {
+        HTMLAttribute(name: "mist-ssr", value: value ? "true" : "false")
+    }
+
+    static func mistContainer(_ acceptedComponents: [String]) -> HTMLAttribute {
+        HTMLAttribute(name: "mist-container", value: acceptedComponents.joined(separator: ","))
+    }
+
+    static func mistInsertPosition(_ value: String) -> HTMLAttribute {
+        HTMLAttribute(name: "mist-insert-position", value: value)
+    }
+
+    static func mistBehavior(_ value: String) -> HTMLAttribute {
+        HTMLAttribute(name: "mist-behavior", value: value)
+    }
+
+    static func mistStream(_ name: String) -> HTMLAttribute {
+        HTMLAttribute(name: "mist-stream", value: name)
+    }
+
+    static func mistStartedAt(_ date: Date) -> HTMLAttribute {
+        let ms = Int64(date.timeIntervalSince1970 * 1000)
+        return HTMLAttribute(name: "data-started-at-unix-ms", value: String(ms))
+    }
+
+    static func mistSortValue(_ value: CustomStringConvertible) -> HTMLAttribute {
+        HTMLAttribute(name: "data-mist-sort-value", value: String(describing: value))
+    }
+
+    static func mistSortOrder(_ order: String) -> HTMLAttribute {
+        HTMLAttribute(name: "data-mist-sort-order", value: order)
+    }
+
+    static func mistSortType(_ type: String) -> HTMLAttribute {
+        HTMLAttribute(name: "data-mist-sort-type", value: type)
+    }
+
+    static func mistSortDelay(ms: Int) -> HTMLAttribute {
+        HTMLAttribute(name: "data-mist-sort-delay-ms", value: String(ms))
     }
     
 }
