@@ -298,6 +298,79 @@ class MistSocket {
         collections.forEach(collection => this.scheduleSortableCollectionReorder(collection));
     }
 
+    htmlBelongsToComponent(html, component) {
+        return html.includes(`mist-component="${component}"`);
+    }
+
+    findComponentElements(component, modelID = null) {
+        return Array.from(document.querySelectorAll(this.buildComponentSelector(component, modelID)));
+    }
+
+    morphComponentElements(elements, html) {
+        elements.forEach(element => {
+            morphdom(element, html);
+        });
+    }
+
+    insertIntoAcceptedContainer(component, html) {
+        const containers = document.querySelectorAll('[mist-container]');
+
+        for (const container of containers) {
+            const acceptedComponents = container.getAttribute('mist-container').split(',').map(c => c.trim());
+
+            if (acceptedComponents.includes(component)) {
+                const insertPosition = container.getAttribute('mist-insert-position') || 'beforeend';
+                container.insertAdjacentHTML(insertPosition, html);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    applyInstanceHTML(component, modelID, html, insertIfMissing = false) {
+        const elements = this.findComponentElements(component, modelID);
+
+        if (elements.length > 0) {
+            this.morphComponentElements(elements, html);
+            this.reorderCollectionsForElements(elements);
+            return 'updated';
+        }
+
+        if (insertIfMissing && this.insertIntoAcceptedContainer(component, html)) {
+            const insertedElements = this.findComponentElements(component, modelID);
+            this.reorderCollectionsForElements(insertedElements);
+            return 'created';
+        }
+
+        return null;
+    }
+
+    applyQueryHTML(component, html) {
+        const elements = this.findComponentElements(component, null);
+
+        if (elements.length > 0) {
+            this.morphComponentElements(elements, html);
+            return 'updated';
+        }
+
+        if (this.insertIntoAcceptedContainer(component, html)) {
+            return 'created';
+        }
+
+        return null;
+    }
+
+    removeComponentElements(component, modelID = null) {
+        const elements = this.findComponentElements(component, modelID);
+
+        elements.forEach(element => {
+            element.remove();
+        });
+
+        return elements;
+    }
+
     handleAction(event) {
 
         const target = event.target.closest('[mist-action]');
@@ -374,106 +447,58 @@ class MistSocket {
                     const { component, modelID, html } = data.createInstanceComponent;
 
                     // Ensure the generated HTML actually belongs to the channel it was broadcasted on
-                    if (!html.includes(`mist-component="${component}"`)) {
+                    if (!this.htmlBelongsToComponent(html, component)) {
                         console.log(`[Client] Dropped cross-channel broadcast for ${component}`);
                         return;
                     }
 
-                    const existingElements = document.querySelectorAll(this.buildComponentSelector(component, modelID));
-
-                    // If component already exists, treat as update
-                    if (existingElements.length > 0) {
-                        existingElements.forEach(element => {
-                            morphdom(element, html);
-                        });
+                    const result = this.applyInstanceHTML(component, modelID, html, true);
+                    if (result) {
                         mutatedHTML = true;
-                        this.reorderCollectionsForElements(Array.from(existingElements));
+                    }
+
+                    if (result === 'updated') {
                         console.log(`[Client] Component updated: ${component} (${modelID.substring(0, 8)})`);
-                    } else {
-                        // Find container that accepts this component
-                        const containers = document.querySelectorAll('[mist-container]');
-                        for (const container of containers) {
-                            const acceptedComponents = container.getAttribute('mist-container').split(',').map(c => c.trim());
-                            if (acceptedComponents.includes(component)) {
-                                // Check for custom insertion position (default: 'beforeend' to append)
-                                const insertPosition = container.getAttribute('mist-insert-position') || 'beforeend';
-                                container.insertAdjacentHTML(insertPosition, html);
-                                const insertedElements = document.querySelectorAll(this.buildComponentSelector(component, modelID));
-                                mutatedHTML = true;
-                                this.reorderCollectionsForElements(Array.from(insertedElements));
-                                console.log(`[Client] Component created: ${component} (${modelID.substring(0, 8)})`);
-                                break;
-                            }
-                        }
+                    } else if (result === 'created') {
+                        console.log(`[Client] Component created: ${component} (${modelID.substring(0, 8)})`);
                     }
                 }
                 else if (data.updateInstanceComponent) {
                     const { component, modelID, html } = data.updateInstanceComponent;
 
                     // Prevent WebSocket Crossover Updates
-                    if (!html.includes(`mist-component="${component}"`)) {
+                    if (!this.htmlBelongsToComponent(html, component)) {
                         console.log(`[Client] Dropped cross-channel update for ${component}`);
                         return;
                     }
 
-                    const elements = document.querySelectorAll(this.buildComponentSelector(component, modelID));
-
-                    elements.forEach(element => {
-                        morphdom(element, html);
-                    });
+                    this.applyInstanceHTML(component, modelID, html);
                     mutatedHTML = true;
-                    this.reorderCollectionsForElements(Array.from(elements));
-
                     console.log(`[Client] Component updated: ${component} (${modelID.substring(0, 8)})`);
                 }
                 else if (data.deleteInstanceComponent) {
                     const { component, modelID } = data.deleteInstanceComponent;
-                    const elements = document.querySelectorAll(this.buildComponentSelector(component, modelID));
-
-                    elements.forEach(element => {
-                        element.remove();
-                    });
-
+                    this.removeComponentElements(component, modelID);
                     console.log(`[Client] Component deleted: ${component} (${modelID.substring(0, 8)})`);
                 }
                 // Query-based component messages (no ID)
                 else if (data.updateQueryComponent) {
                     const { component, html } = data.updateQueryComponent;
-                    const existingElements = document.querySelectorAll(this.buildComponentSelector(component, null));
 
-                    // If component already exists, replace it
-                    if (existingElements.length > 0) {
-                        existingElements.forEach(element => {
-                            morphdom(element, html);
-                        });
+                    const result = this.applyQueryHTML(component, html);
+                    if (result) {
                         mutatedHTML = true;
+                    }
+
+                    if (result === 'updated') {
                         console.log(`[Client] Component updated: ${component}`);
-                    } else {
-                        // Find container that accepts this component
-                        const containers = document.querySelectorAll('[mist-container]');
-
-                        for (const container of containers) {
-                            const acceptedComponents = container.getAttribute('mist-container').split(',').map(c => c.trim());
-
-                            if (acceptedComponents.includes(component)) {
-                                // Check for custom insertion position (default: 'beforeend' to append)
-                                const insertPosition = container.getAttribute('mist-insert-position') || 'beforeend';
-                                container.insertAdjacentHTML(insertPosition, html);
-                                mutatedHTML = true;
-                                console.log(`[Client] Component created: ${component}`);
-                                break;
-                            }
-                        }
+                    } else if (result === 'created') {
+                        console.log(`[Client] Component created: ${component}`);
                     }
                 }
                 else if (data.deleteQueryComponent) {
                     const { component } = data.deleteQueryComponent;
-                    const elements = document.querySelectorAll(this.buildComponentSelector(component, null));
-
-                    elements.forEach(element => {
-                        element.remove();
-                    });
-
+                    this.removeComponentElements(component, null);
                     console.log(`[Client] Component deleted: ${component}`);
                 }
                 else if (data.replaceStream) {
