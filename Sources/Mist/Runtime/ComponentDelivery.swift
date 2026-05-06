@@ -122,7 +122,6 @@ struct ComponentDelivery {
         of component: any InstanceComponent,
         modelID: UUID
     ) async {
-        let app = self.app
         let subscribers = await app.mist.clients.getSubscribers(of: component.name)
 
         await withTaskGroup(of: Void.self) { group in
@@ -130,26 +129,30 @@ struct ComponentDelivery {
                 let clientID = subscriber.clientID
 
                 group.addTask {
-                    let state = await app.mist.clients.getState(
+                    let state = await self.app.mist.clients.getState(
                         for: clientID,
                         componentID: modelID.uuidString,
                         default: component.defaultState
                     )
 
-                    let result = await component.render(
+                    guard case .rendered(let html) = await component.render(
                         with: modelID,
                         state: state,
-                        on: app
-                    )
+                        on: self.app
+                    ) else { return }
 
-                    await Self.sendInstanceResult(
-                        result,
-                        mutation: mutation,
-                        component: component.name,
-                        modelID: modelID,
-                        to: clientID,
-                        app: app
-                    )
+                    switch mutation {
+                    case .create:
+                        await self.app.mist.clients.send(
+                            Message.InstanceCreate(component: component.name, modelID: modelID, html: html),
+                            to: clientID
+                        )
+                    case .update:
+                        await self.app.mist.clients.send(
+                            Message.InstanceUpdate(component: component.name, modelID: modelID, html: html),
+                            to: clientID
+                        )
+                    }
                 }
             }
         }
@@ -180,45 +183,16 @@ struct ComponentDelivery {
         guard let modelID else { return }
         guard let component = component as? any InstanceComponent else { return }
 
-        let result = await component.render(
+        guard case .rendered(let html) = await component.render(
             with: modelID,
             state: state,
             on: app
+        ) else { return }
+
+        await app.mist.clients.send(
+            Message.InstanceUpdate(component: component.name, modelID: modelID, html: html),
+            to: clientID
         )
-
-        await Self.sendInstanceResult(
-            result,
-            mutation: .update,
-            component: component.name,
-            modelID: modelID,
-            to: clientID,
-            app: app
-        )
-    }
-
-    // Static helper for task group
-    private static func sendInstanceResult(
-        _ result: RenderResult,
-        mutation: InstanceMutation,
-        component: String,
-        modelID: UUID,
-        to clientID: UUID,
-        app: Application
-    ) async {
-        guard case .rendered(let html) = result else { return }
-
-        switch mutation {
-            case .create:
-                await app.mist.clients.send(
-                    Message.InstanceCreate(component: component, modelID: modelID, html: html),
-                    to: clientID
-                )
-            case .update:
-                await app.mist.clients.send(
-                    Message.InstanceUpdate(component: component, modelID: modelID, html: html),
-                    to: clientID
-                )
-        }
     }
 
 }
