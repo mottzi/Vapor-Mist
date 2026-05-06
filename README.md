@@ -1,356 +1,724 @@
 # Mist
- 
-Mist is a lightweight Swift server components extension for [Vapor](https://docs.vapor.codes) applications. It enables real-time client side HTML component updates through type safe web socket communication with the server. 
 
-[Fluent](https://docs.vapor.codes/fluent/overview/) is used as database ORM and [Leaf](https://docs.vapor.codes/leaf/overview/) is used as HTML templating engine - both are part of Vapor's default stack.
+Server-driven UI for Swift, built on [Vapor](https://github.com/vapor/vapor). Mist renders components on the server and broadcasts HTML updates over WebSockets, patching the client DOM in real time. Build interactive web apps with zero custom JavaScript and no page reloads.
 
 > [!WARNING]
-> This is just a proof of concept implementation and not at all production ready!
+> Early proof-of-concept — use in production with caution.
 
-AFAIK, the Swift/Vapor ecosystem does not currently have an equivalent to Ruby on Rails [Hotwire/Turbo](https://hotwired.dev), Phoenix [LiveView](https://hexdocs.pm/phoenix_live_view/welcome.html) or Laravel [Livewire](https://livewire.laravel.com), [HTMX](https://htmx.org) etc. The end goal of this project is to make Mist a usefull equivalent to those tools, but for the Swift / Vapor ecosystem!
-
-Please consider using your Swift skills to contribute to Mist in whatever ways you can, as this project will only go as far as the community takes it! If you have suggestions or criticism, feel free to [open an issue](https://github.com/mottzi/Mist/issues/new)!
+The Swift/Vapor ecosystem has no established equivalent to Rails [Hotwire/Turbo](https://hotwired.dev), Phoenix [LiveView](https://hexdocs.pm/phoenix_live_view/welcome.html), Laravel [Livewire](https://livewire.laravel.com), or [HTMX](https://htmx.org). Mist aims to fill that gap. Contributions and feedback are welcome — [open an issue](https://github.com/mottzi/Mist/issues/new) to get involved.
 
 ## Demo
 
-The video below demonstrates Mist's real-time update capability: When database entries are modified, the changes are automatically detected and broadcasted to all connected clients. 
-
-In this demo, we trigger database updates using simple HTTP GET requests to specific endpoints. When these endpoints are called, the server updates the corresponding database records, which Mist automatically detects. 
-
-The system then renders the updated component HTML and pushes it through WebSockets to all subscribed clients, where the DOM is instantly updated without requiring a page refresh.
-
-Keep an eye on the incoming update-messages in the browser's console!
+Database records updated via HTTP GET — Mist detects the change, re-renders the component, and pushes the HTML to all connected clients instantly.
 
 https://github.com/user-attachments/assets/6f9450a8-1abd-4b3c-a91b-f960ef53f606
 
-## Setup
+## How It Works
+ 
+A Mist component renders its template into updated HTML. Reactivity is governed by five protocols that dictate when re-rendering occurs. When triggered, Mist pushes the updated component HTML to all subscribed clients, where `mist.js` and `morphdom.js` patch the DOM.
 
-### 1. Add package dependency (Package.swift):
+| Protocol | Behavior |
+| :--- | :--- |
+| **`InstanceComponent`** | Binds to a database record.<br> Re-renders on create, update, or delete events. |
+| **`QueryComponent`** | Binds to a database query.<br> Re-renders when the tracked model mutates. |
+| **`PollingComponent`** | Periodically calls `poll()`.<br> Re-renders when the returned result changes. |
+| **`LiveComponent`** | Periodically calls `refresh()`.<br> Re-renders when internal state changes. |
+| **`ManualComponent`** | Fully manual. <br> Re-renders only when state is explicitly modified. |
+
+## Installation
+
 ```swift
-let package = Package(
-	...
-    dependencies: [
-        .package(url: "https://github.com/mottzi/Mist", from: "0.5.0"),
-    ],
-    targets: [
-        .executableTarget(
-            ...
-            dependencies: [
-                .product(name: "Mist", package: "Mist"),
-                ...
-            ]
-        )
-    ]
-)
+// Package.swift
+dependencies: [
+    .package(url: "https://github.com/mottzi/Mist", from: "0.20.0"),
+],
+targets: [
+    .executableTarget(
+        dependencies: [
+            .product(name: "Mist", package: "Mist"),
+        ]
+    )
+]
 ```
-Mist has Vapor, Fluent and Leaf declared as internal dependencies.
 
-### 2. Define database table and model:
+Copy `mist.js` and `morphdom.js` from the package into your `/Public` directory.
+
+## Example
+
+`CounterComponent` is a counter that all clients share and can increment; updates are seen instantly by everyone.
+
+### Configure the Component
+
+Define `count: Int` as the state of the component:
 
 ```swift
-import Vapor
-import Fluent
-import Mist
+struct CounterState: ComponentData {
 
-final class DummyModel1: Mist.Model, Content
-{
-    static let schema = "dummymodel1"
-    
-    @ID(key: .id) 
-    var id: UUID?
-    
-    @Field(key: "text") 
-    var text: String
-    
-    @Timestamp(key: "created", on: .create) 
-    var created: Date?
-    
-    init() {}
-    init(text: String) { self.text = text }
+    var count: Int = 0
+
 }
+```
 
-extension DummyModel1
-{
-    struct Table: AsyncMigration
-    {
-        func prepare(on database: Database) async throws
-        {
-            try await database.schema(DummyModel1.schema)
-                .id()
-                .field("text", .string, .required)
-                .field("created", .datetime)
-                .create()
-        }
-        
-        func revert(on database: Database) async throws
-        {
-            try await database.schema(DummyModel1.schema).delete()
+Define `CounterComponent` that conforms to the `ManualComponent` protocol. The initial `CounterState` is wrapped and managed by `LiveState`:
+
+```swift
+struct CounterComponent: ManualComponent {
+
+    let state = LiveState(of: CounterState())
+
+}
+```
+
+When the `LiveState` of a `ManualComponent` is `.set()` programmatically, the component re-renders using its template. Mist supports [Leaf](https://github.com/vapor/leaf.git) and [Elementary](https://github.com/elementary-swift/elementary.git) templates.
+
+**Option A**: 
+
+Define a Leaf template as an inline String: 
+
+```swift
+struct CounterComponent: ManualComponent {
+
+    var template: any Template { LeafTemplate.inline("""
+        <div mist-component="CounterComponent">
+            <h2>Global Count</h2>
+            <div>#(count)</div>
+            <button mist-action="increment">Increment Count</button>
+        </div>
+        """)
+    }
+
+}
+```
+
+**Option B**: 
+
+Reference a file based Leaf template:
+
+```swift
+struct CounterComponent: ManualComponent {
+
+    // resolves to: /Resources/Views/CounterComponent.leaf
+    var template: any Template { LeafTemplate.file("CounterComponent") }
+
+    // resolves to: /Resources/Views/CounterComponent.leaf
+    var template: any Template { LeafTemplate.file(self.name) }
+
+}
+```
+
+If no template is explicitly defined, mist will use `LeafTemplate.file(self.name)` by default. Use `LeafTemplate.file("MyFolder/MyComponent")` when the `.leaf` file lives in a subfolder of `Resources/Views`.
+
+**Option C**:
+
+Elementary templates:
+
+```swift
+struct CounterComponent: ManualComponent {
+
+    func body(state: CounterState) -> some HTML {
+        div(.mistComponent(name)) {
+            h2 { "Global Count" }
+            div { "\(state.count)" }
+            button(.mistAction("increment")) { "Increment Count" }
         }
     }
+
 }
 ```
-Do the same with DummyModel2...
 
-### 3. Define server component:
+### Add an Action
 
-> [!WARNING]
-> The current implementation only supports one-to-one component model relationships in multi model components. Mist will implicitly use a model's ```id: UUID``` property  as identifier (```model1.id == model2.id```).
+To make the button interactive, define `IncrementAction` that conforms to `Action`. Mist routes a client's click to the right server function by matching the `mist-action` attribute in the component template with the `name` property of the action. 
 
 ```swift
-import Mist
+struct IncrementAction: Action {
 
-struct DummyComponent: Mist.Component
-{
-    static let models: [any Mist.Model.Type] = [
-        DummyModel1.self,
-        DummyModel2.self
-    ]
+    let name = "increment"
+    let counterState: LiveState<CounterState>
+
+    func perform(targetID: UUID?, state: inout ComponentState, app: Application) async -> ActionResult {
+        let currentCount = await counterState.current.count
+        await counterState.set(CounterState(count: currentCount + 1))
+        return .success()
+    }
+
 }
 ```
 
-### 4. Add component template: 
+The `perform()` function is called when a client clicks the increment button. It reads the current count, increments it, and sets the new state. This triggers a re-render and broadcast to all clients.
 
-File *Resources/Views/DummyComponent.leaf*:
+Add `IncrementAction` to `CounterComponent`:
 
-```html
-<tr mist-component="DummyComponent" mist-id="#(component.dummymodel1.id)">
-    <td>#(component.dummymodel1.id)</td>
-    <td>#(component.dummymodel1.text)</td>
-    <td>#(component.dummymodel2.text)</td>
-</tr>
+```swift
+struct CounterComponent: ManualComponent {
 
+    var actions: [any Action] {
+        [IncrementAction(counterState: state)]
+    }
+
+}
 ```
 
-### 5. Add template for initial page request:
+### Register the Component
 
-File *Resources/Views/InitialDummies.leaf*:
+Register the component with the Mist runtime:
+
+```swift
+try await app.mist.use {
+    CounterComponent()
+}
+```
+
+### Serve the Component
+
+Now we just need to create a new route in our app that serves a HTML page containing our `CounterComponent`.
+
+**Option A**:
+
+Create a `.leaf` template file for `CounterComponent` at `Resources/Views/CounterComponent.leaf`:
+
+```html
+<div mist-component="CounterComponent">
+    <h2>Global Count</h2>
+    <div>#(count)</div>
+    <button mist-action="increment">Increment Count</button>
+</div>
+```
+
+Skip this if you are using an inline Leaf template.
+
+Create a `.leaf` template file for the whole page at `/Resources/Views/CounterPage.leaf`. 
 
 ```html
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <style>
-        th, td { padding: 0 15px; }
-    </style>
+    <title>Counter Example Page</title>
 </head>
 <body>
-    <table>
-        <thead>
-            <tr>
-                <th>Component ID</th>
-                <th>DummyModel1</th>
-                <th>DummyModel2</th>
-            </tr>
-        </thead>
-        <tbody>
-        #for(component in components):
-            #extend("DummyComponent")
-        #endfor
-        </tbody>
-    </table>
-
+    <div mist-container="CounterComponent" mist-ssr="true">
+        #extend("CounterComponent")
+    </div>
+    <script src="/morphdom.js"></script>
     <script src="/mist.js"></script>
 </body>
 </html>
 ```
 
-### 6. Add route for initial page request:
+Leaf's `#extend` tag injects the `CounterComponent` into the page.
 
-File *Sources/App/routes.swift*:
+Serve the page, passing in the initial state so Leaf can populate the `#(count)` tag on the first load:
 
 ```swift
-app.get("DummyComponents")
-{ request async throws -> View in
-    // create template context with all available component data
-    let context = await DummyComponent.makeContext(ofAll: request.db)
-
-    // render initial page template with full data set
-    return try await request.view.render("InitialDummies", context)
+app.get("counter") { req async throws -> View in
+    let counter = await req.application.mistComponent(CounterComponent.self)
+    let currentState = await counter?.state.current ?? CounterState()
+    return try await req.view.render("CounterPage", ["count": currentState.count])
 }
 ```
 
-For demo purposes, add an endpoint to update component model data in database:
+**Option B**: Using Elementary
+
+Then define the page using `HTMLDocument`:
 
 ```swift
-app.get("DummyModel1", "update", ":id", ":text")
-{ req async throws -> HTTPStatus in
+// routes.swift — serve the page however you like; here using Elementary
+import Elementary
+
+struct CounterPage: HTMLDocument {
     
-    guard let idString = req.parameters.get("id"),
-          let id = UUID(uuidString: idString)
-    else { throw Abort(.badRequest, reason: "Valid UUID required") }
+    var title = "Counter Example Page"
+    let currentState: CounterState
+
+    var head: some HTML { 
+        EmptyHTML() 
+    }
+
+    var body: some HTML {
+        div(
+            .mistContainer(["CounterComponent"]),
+            .mistSSR(true)
+        ) {
+            CounterComponent()
+                .body(state: currentState)
+        }
+        script(.src("/morphdom.js")) {}
+        script(.src("/mist.js")) {}
+    }
     
-    guard let text = req.parameters.get("text")
-    else { throw Abort(.badRequest, reason: "Valid text required") }
-    
-    guard let dummyModel1 = try await DummyModel1.find(id, on: req.db)
-    else { throw Abort(.notFound, reason: "DummyModel1 not found") }
-    
-    dummyModel1.text = text
-    try await dummyModel1.save(on: req.db)
-    
-    return .ok
 }
 ```
 
-Do the same for DummyModel2...
-
-### 7. Configure Mist:
-
-File *Sources/App/configure.swift*:
+Serve the page directly:
 
 ```swift
-// needed to serve mist.js to client
-app.middleware.use(FileMiddleware(publicDirectory: app.directory.publicDirectory))
+import VaporElementary
 
-// create component model database tables
-app.migrations.add(
-    DummyModel1.Table(),
-    DummyModel2.Table()
-)
-
-// configure Mist with components
-await app.mist.use(
-    components: [
-        DummyComponent.self,
-    ]
-)
-
-app.views.use(.leaf)
+app.get("counter") { req async throws in
+    let counter = await req.application.mistComponent(CounterComponent.self)
+    let currentState = await counter?.state.current ?? CounterState()
+    return HTMLResponse { CounterPage(currentState: currentState) }
+}
 ```
 
-For demo purposes, create component models after configuration:
+That's it. Every connected client viewing the `/counter` page will now increment the same global counter and see every update instantly.
 
-```swift
-let dummyModel1 = DummyModel1(text: "Hello")
-let dummyModel2 = DummyModel2(text: "World")
+### Demo
 
-let componentID = UUID()
-dummyModel1.id = componentID
-dummyModel2.id = componentID
+Click [here](https://mottzi.codes/CounterExample) for a live demo.
 
-try await dummyModel1.save(on: app.db)
-try await dummyModel2.save(on: app.db)
-```
+https://github.com/user-attachments/assets/9bb1edfe-cd06-4ef1-af4d-53d452624d56
 
-### 8. Copy mist.js to your public directory
-
-The Mist framework package contains a [mist.js file](Sources/Mist/mist.js)) that handles client side DOM manipulation.
-
-Simply copy this file to your application's /Public directory.
-
-## Documentation
-
-### Overview
-
-**Current Features**:
-
-- Server-defined components with automatic model binding
-- Database change detection via Fluent middleware
-- Automatic WebSocket-based HTML updates to connected clients
-- Component subscription system
-- Support for single and multi-model components (with shared UUID)
-- Simple client-side DOM replacement with minimal JS
-
-**Implementation Details**:
-
-- Type-safe component registration using protocols ([MistComponent.swift](Sources/Mist/MistComponent.swift))
-- Actor-based client and component registries for thread safety ([MistClients.swift](Sources/Mist/MistClients.swift), [MistComponents.swift](Sources/Mist/MistComponents.swift))
-- Fluent database listener middleware configuration ([Mist.ModelListener.swift](Sources/Mist/Mist.ModelListener.swift))
-- Leaf template rendering for component HTML generation ([MistComponent.swift](Sources/Mist/MistComponent.swift))
-- JSON-based message protocol for communication over websockets ([MistSocket.swift](Sources/Mist/MistSocket.swift), [Mist.Message.swift](Sources/Mist/Mist.Message.swift))
-
-**Known Limitations**:
-
-- Only supports one-to-one relationships between component models via ```ìd: UUID```
-- No differential updates (sends complete HTML on each change)
-- Error handling
-- No form binding or user input handling yet
-- Testing architecture is in place but coverage is limited
-- No security hardening applied yet
-
-**Next Steps**:
-
-- Support more complex model relationships
-- Add form handling capabilities
-- Implement optimized differential updates
-- Improve connection stability and error recovery
-- Expand documentation and examples
-- Add authentication integration
-
-**Project files**:
-
-This prototype contains eight .swift and one .js file:
-
-```swift
-// Mist.swift:              entry point, configuration, initialization
-// MistClients.swift:       central client registry, messaging
-// MistComponents.swift:    central component registry
-
-// MistComponent.swift:     context generation, html rendering
-// Mist.Model.swift:         context generation
-// Mist.ModelListener.swift:      database update detection, messaging
-
-// MistSocket.swift:        web socket server, handles client component subscriptions
-// Mist.Message.swift:       type safe client-server-client communication over web sockets
-```
-
-```swift
-// mist.js:                 client-side DOM updates
-```
-
-### Data Flow Charts
-
-I created some flow charts that visualize the data flow in important parts of Mist:
+## Primitives
 
 <details>
-<summary>1. Initial Page Request</summary>
-	
-![Initial](https://mottzi.de/space/mist0.svg?)
+<summary><strong>InstanceComponent</strong></summary>
 
-1. Client requests initial full page
-2. Server fetches necessary data from database
-3. Server creates template context
-4. Server renders full page
-5. Server sends initial HTML (including mist.js) to client
+One rendered instance per database record. Mist listens to Fluent create/update/delete events and re-renders the matching instance for all subscribed clients.
+
+```swift
+struct PostComponent: InstanceComponent {
+    let models: [any Mist.Model.Type] = [Post.self]
+}
+```
+
+**Multi-model components** share a UUID primary key. Override `allModels(on:)` to control the initial data load: `allModels(on:)` returns rows of `models.first` (**one Mist instance per primary row**, e.g. each row is one `{User + Profile}` card); Mist loads every other listed type by the same primary key.
+
+```swift
+struct ProfileComponent: InstanceComponent {
+
+    let division: String
+
+    var name: String { Self.name(for: division) }
+
+    let models: [any Mist.Model.Type] = [User.self, Profile.self]
+    let template: any Template = LeafTemplate.file("TeamProfileExample/ProfileComponent")
+
+    static func name(for division: String) -> String {
+        "ProfileComponent-\(division)"
+    }
+
+    func allModels(on db: Database) async throws -> [any Mist.Model] {
+        try await User.query(on: db)
+            .filter(\.$division == division)
+            .sort(\.$displayName)
+            .all()
+    }
+}
+```
+
+Template context keys are the lowercased type names: `context.user`, `context.profile`.
+
+**shouldUpdate** — filter which model changes trigger a re-render:
+
+```swift
+extension ProfileComponent {
+    func shouldUpdate<M: Model>(for model: M) -> Bool {
+        if model is Profile { return true }
+        guard let user = model as? User else { return false }
+        return user.division == division
+    }
+}
+```
+
+**Component template** — `Resources/Views/TeamProfileExample/ProfileComponent.leaf`
+
+```html
+<article class="profile-card"
+         mist-component="ProfileComponent-#(context.user.division)"
+         mist-id="#(context.user.id)">
+    <header>
+        <span class="name">#(context.user.displayName)</span>
+        <span class="handle">@#(context.user.handle)</span>
+    </header>
+    <p class="bio">#(context.profile.bio)</p>
+</article>
+```
+
+**Page template** — `Resources/Views/TeamProfileExample/TeamProfileExamplePage.leaf`
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Team directory</title>
+</head>
+<body>
+    <main class="container">
+        <h1>Team directory</h1>
+        <div class="profile-grid" mist-container="ProfileComponent-#(division)" mist-ssr="true">
+            #for(context in contexts):
+                #extend("TeamProfileExample/ProfileComponent")
+            #endfor
+        </div>
+    </main>
+    <script src="/morphdom.js"></script>
+    <script src="/mist.js"></script>
+</body>
+</html>
+```
+
+**Route and registration** — Register **`ProfileComponent`** once per allowed `division`. `GET /teamprofile/:division` (e.g. `/teamprofile/myDivisionA21id`) rejects unknown segments so only registered names appear in the DOM.
+
+```swift
+let divisions = ["europe", "east-coast"]
+
+try await app.mist.use {
+    for division in divisions {
+        ProfileComponent(division: division)
+    }
+}
+
+app.get("teamprofile", ":division") { req async throws -> View in
+    let division = try req.parameters.require("division")
+    guard divisions.contains(division) else {
+        throw Abort(.notFound)
+    }
+    let component = ProfileComponent(division: division)
+    let componentContexts = try await component.makeContext(ofAll: req.db)
+    let page = TeamDirectoryPageContext(contexts: componentContexts.contexts, division: division)
+    return try await req.view.render("TeamProfileExample/TeamProfileExamplePage", page)
+}
+
+struct TeamDirectoryPageContext: Encodable {
+    let contexts: [ModelContext]
+    let division: String
+}
+```
 
 </details>
 
 <details>
-<summary>2. Component Subscription</summary>
-	
-![Initial](https://mottzi.de/space/mist-sub1.svg?)
+<summary><strong>QueryComponent</strong></summary>
 
-1. Client uses mist.js to connect to server through web socket
-2. Server adds the connected client to registry
-3. Client scans DOM for "mist-component" HTML attribute
-4. Client sends subscription messages of found components
-5. Server adds subscriptions to client inside of registry
+A single fragment driven by a Fluent query. Re-renders when any tracked model changes.
 
-</details>
+```swift
+struct LatestPostComponent: QueryComponent {
+    typealias FragmentModel = Post
 
-<details>
-<summary>3. Component Update Broadcasting</summary>
-	
-![Initial](https://mottzi.de/space/mist-listener.svg?)
+    func query(on db: Database) async throws -> Post? {
+        try await Post.query(on: db).sort(\.$created, .descending).first()
+    }
+}
+```
 
-1. Server registers middleware listeners for each model
-2. Database model entry changes
-3. Mist.Listener for that model triggers
-4. Server identifies components using changed model
-5. Server re-renders affected components and creates update messages
-6. Server identifies clients that are subscribed to these components
-7. Server broadcasts update messages to subscribed clients
+`query` returning `nil` sends a delete message — the fragment disappears from subscribed clients.
 
 </details>
 
 <details>
-<summary>4. Client Update Handling</summary>
-	
-![Initial](https://mottzi.de/space/mist-update.svg?)
+<summary><strong>PollingComponent</strong></summary>
 
-1. Client receives update message using mist.js
-2. Client parses received JSON payload
-3. Client scans DOM to find elements with matching component name and id
-4. Client replaces outerHTML of found component with update
+Periodically calls `poll(on:)` and broadcasts when the result changes. No Fluent middleware involved.
+
+```swift
+struct VoteResultsComponent: PollingComponent {
+    var refreshInterval: Duration { .seconds(2) }
+
+    func poll(on db: Database) async -> VoteContext? {
+        let swiftCount  = (try? await LiveVotingModel.query(on: db).filter(\.$choice == "swift").count())  ?? 0
+        let kotlinCount = (try? await LiveVotingModel.query(on: db).filter(\.$choice == "kotlin").count()) ?? 0
+        return VoteContext(swift: swiftCount, kotlin: kotlinCount)
+    }
+}
+```
+
+`poll` returning `nil` sends a delete message to all subscribed clients. New subscribers receive the last known state immediately without waiting for the next poll cycle.
+
+</details>
+
+<details>
+<summary><strong>LiveComponent</strong></summary>
+
+Owns a `LiveState` that it refreshes on a schedule. Call `state.set(…)` inside `refresh(app:)` — Mist broadcasts to all subscribers whenever the value actually changes.
+
+```swift
+struct SystemMemoryComponent: LiveComponent {
+    struct SystemMetrics: ComponentData {
+        var memoryUsage: Double
+    }
+
+    let state = LiveState(of: SystemMetrics(memoryUsage: getSystemMemoryUsageMB()))
+    var refreshInterval: Duration { .seconds(2) }
+
+    func refresh(app: Application) async {
+        let usageMB = getSystemMemoryUsageMB()
+        await state.set(SystemMetrics(memoryUsage: usageMB))
+    }
+}
+```
+
+`refresh(app:)` is called once at startup, then after each `refreshInterval`. Broadcasts only fire when the new value differs from the current one.
+
+By default, `LiveComponent` sets `pausesDuringAction = true` — automatic refreshes are suppressed while an action is executing to prevent race conditions.
+
+</details>
+
+<details>
+<summary><strong>ManualComponent</strong></summary>
+
+Like `LiveComponent` but with no automatic refresh loop. You drive all updates yourself by calling `state.set(…)` from anywhere — actions, routes, background tasks.
+
+```swift
+struct CounterComponent: ManualComponent {
+    struct State: ComponentData {
+        var count = 0
+    }
+
+    let state = LiveState(of: State())
+    var actions: [any Action] { [IncrementAction(counterState: state)] }
+}
+```
+
+Push an update from an action, a route handler, or background work:
+
+```swift
+await counterComponent.state.set(CounterComponent.State(count: newCount))
+```
+
+</details>
+
+<br>
+
+<details>
+<summary><strong>Actions</strong></summary>
+
+Actions are server-side functions triggered by `mist-action` HTML attributes on click. They receive mutable per-client `ComponentState` and an optional `targetID`.
+
+**Define:**
+
+```swift
+struct IncrementAction: Action {
+    let name = "increment"
+    let counterState: LiveState<CounterComponent.State>
+
+    func perform(targetID: UUID?, state: inout ComponentState, app: Application) async -> ActionResult {
+        let current = await counterState.current.count
+        await counterState.set(.init(count: current + 1))
+        return .success()
+    }
+}
+```
+
+**Register on the component:**
+
+```swift
+struct CounterComponent: ManualComponent {
+    let state = LiveState(of: State())
+    var actions: [any Action] { [IncrementAction(counterState: state)] }
+}
+```
+
+**Trigger from the template:**
+
+```html
+<button mist-action="increment">+</button>
+```
+
+**Return values:**
+
+```swift
+return .success()                     // success, no message
+return .success("Deployment started") // success with message
+return .failure("Not found")          // failure with message
+```
+
+The client receives an `actionResult` message regardless. On `.success`, Mist automatically re-renders the component instance for the acting client with updated state.
+
+**Actions for detached controls** — trigger an action on a component elsewhere in the DOM using `mist-actions-for`:
+
+```html
+<button mist-action="stop" mist-actions-for="StatusComponent-myapp">Stop</button>
+```
+
+</details>
+
+<details>
+<summary><strong>Streams</strong></summary>
+
+Append-only text streams scoped to a component instance. Useful for streaming build output, logs, or LLM token responses. The buffer is snapshotted and replayed to new subscribers automatically.
+
+**Server:**
+
+```swift
+// Replace the full stream content
+await app.mist.streams.replace(component: "RowComponent-myapp", modelID: id, stream: "build-output", text: fullLog)
+
+// Append a chunk
+await app.mist.streams.append(component: "RowComponent-myapp", modelID: id, stream: "build-output", text: chunk)
+
+// Close the stream (clears the buffer)
+await app.mist.streams.close(component: "RowComponent-myapp", modelID: id, stream: "build-output")
+```
+
+**Template:**
+
+```html
+<pre mist-stream="build-output"></pre>
+```
+
+The `[mist-stream]` element receives text directly. `append` appends a text node; `replace` sets `textContent`. The element auto-scrolls to the bottom on each update.
+
+</details>
+
+<br>
+
+<details>
+<summary><strong>Per-Client State</strong></summary>
+
+`ComponentState` is a `[String: ComponentValue]` dictionary scoped to one client × one component instance. It persists across actions and is passed into every render for that client, so templates can reflect each client's individual state.
+
+```swift
+// Read and mutate inside an action
+func perform(targetID: UUID?, state: inout ComponentState, app: Application) async -> ActionResult {
+    let isExpanded = state["detailsExpanded"]?.bool ?? false
+    state["detailsExpanded"] = .bool(!isExpanded)
+    return .success()
+}
+```
+
+Declare defaults on the component:
+
+```swift
+let defaultState: ComponentState = ["detailsExpanded": .bool(false)]
+```
+
+`ComponentValue` supports `.bool(Bool)`, `.string(String)`, and `.int(Int)`.
+
+Access in a Leaf template:
+
+```html
+#if(state.detailsExpanded):
+    <div class="expanded-content">...</div>
+#endif
+```
+
+</details>
+
+<details>
+<summary><strong>Computed Properties</strong></summary>
+
+Models can expose computed values that are merged into the template context alongside stored fields:
+
+```swift
+final class Deployment: Mist.Model, Content {
+    // ... stored fields ...
+
+    var computedProperties: [String: any Encodable] {[
+        "shortID":       String(id?.uuidString.prefix(8) ?? ""),
+        "durationString": formattedDuration(),
+        "canBeDeployed":  status == "pushed"
+    ]}
+}
+```
+
+These appear in the Leaf template just like regular fields: `#(context.deployment.shortID)`.
+
+</details>
+
+<details>
+<summary><strong>Client Attributes</strong></summary>
+
+| Attribute | Purpose |
+|---|---|
+| `mist-component="Name"` | Marks a component root; used for DOM targeting and subscriptions |
+| `mist-id="uuid"` | Instance identity for `InstanceComponent` |
+| `mist-container="Name"` | Accepts dynamically inserted/removed component instances |
+| `mist-insert-position` | Where new instances are inserted — any `insertAdjacentHTML` position, default `beforeend` |
+| `mist-action="actionName"` | Triggers a server action on click |
+| `mist-actions-for="Name"` | Routes a click action to a named component elsewhere in the DOM |
+| `mist-stream="streamName"` | Receives append-only text from the server |
+| `mist-behavior="timer"` | Client-side elapsed timer, requires `data-started-at-unix-ms` |
+| `mist-behavior="local-datetime"` | Formats a Unix ms timestamp to local time, requires `data-started-at-unix-ms` |
+| `mist-behavior="sortable-collection"` | Auto-sorts children by `data-mist-sort-value` on mutation |
+| `data-mist-sort-order` | `"asc"` (default) or `"desc"` |
+| `data-mist-sort-type` | `"number"` (default) or `"string"` |
+| `data-mist-sort-delay-ms` | Debounce delay in ms before reordering (default `0`) |
+
+</details>
+
+<details>
+<summary><strong>Socket Configuration</strong></summary>
+
+```swift
+// Custom WebSocket path (default: /mist/ws/)
+app.mist.socket.path = ["deployer", "ws"]
+
+// Attach auth middleware to the socket endpoint
+app.mist.socket.middleware = MySessionAuthMiddleware()
+
+// Custom upgrade validation — return nil to reject the upgrade
+app.mist.socket.shouldUpgrade = { request async -> HTTPHeaders? in
+    guard request.session.data["admin_auth"] == "true" else { return nil }
+    return HTTPHeaders()
+}
+```
+
+</details>
+
+## Examples
+
+Interactive demos run at [Mist Examples](https://mottzi.codes/MistExamples). Full sources live in [Vapor-Mist-examples](https://github.com/mottzi/Vapor-Mist-examples); routes are registered in [`Sources/Mottzi/MistExamples/MistExamples.swift`](https://github.com/mottzi/Vapor-Mist-examples/blob/main/Sources/Mottzi/MistExamples/MistExamples.swift) .
+
+<details>
+<summary><strong>Flashcards</strong></summary>
+
+Shows `InstanceComponent` with paired Fluent models whose rows share one UUID, Leaf markup for each card, per-client flip state, plus actions to create random pairs, shuffle text, and delete both sides. New rows hydrate into the grid via a `mist-container`.
+
+- **Live demo:** [Flashcards](https://mottzi.codes/FlashcardExample)
+- **Code:** [`Sources/Mottzi/MistExamples/FlashCardExample`](https://github.com/mottzi/Vapor-Mist-examples/tree/main/Sources/Mottzi/MistExamples/FlashCardExample)
+- **Leaf templates:** [`Resources/Views/FlashcardExample`](https://github.com/mottzi/Vapor-Mist-examples/tree/main/Resources/Views/FlashcardExample)
+
+</details>
+
+<details>
+<summary><strong>Counter</strong></summary>
+
+Single shared counter implemented as `ManualComponent`: one `LiveState`, an increment action, Elementary-built markup. Updates broadcast so every browser stays aligned without polling.
+
+- **Live demo:** [Counter](https://mottzi.codes/CounterExample)
+- **Code:** [`Sources/Mottzi/MistExamples/CounterExample`](https://github.com/mottzi/Vapor-Mist-examples/tree/main/Sources/Mottzi/MistExamples/CounterExample)
+
+</details>
+
+<details>
+<summary><strong>Counter (Leaf)</strong></summary>
+
+Same counter semantics as above with Leaf supplying the page shell—useful if you want to compare Mist wiring alongside traditional server-rendered HTML.
+
+- **Live demo:** [Counter (Leaf)](https://mottzi.codes/CounterExample2)
+- **Code:** [`Sources/Mottzi/MistExamples/CounterExample2`](https://github.com/mottzi/Vapor-Mist-examples/tree/main/Sources/Mottzi/MistExamples/CounterExample2)
+
+</details>
+
+<details>
+<summary><strong>System monitor</strong></summary>
+
+Several `LiveComponent` tiles on one dashboard-style page (memory, CPU, websocket client count, stress harness). Mist invokes each fragment's `refresh(app:)` on its interval so numbers stay current without user gestures.
+
+- **Live demo:** [System monitor](https://mottzi.codes/SystemMonitorExample)
+- **Code:** [`Sources/Mottzi/MistExamples/SystemMemoryExample`](https://github.com/mottzi/Vapor-Mist-examples/tree/main/Sources/Mottzi/MistExamples/SystemMemoryExample) · per-widget Swift under [`Components`](https://github.com/mottzi/Vapor-Mist-examples/tree/main/Sources/Mottzi/MistExamples/SystemMemoryExample/Components)
+
+</details>
+
+<details>
+<summary><strong>Live polling / voting</strong></summary>
+
+`PollingComponent` for a Swift vs Kotlin straw poll: vote actions append Fluent rows; `poll(on:)` runs on an interval to re-count choices and push refreshed percentages and totals to every subscriber.
+
+- **Live demo:** [Live polling / voting](https://mottzi.codes/LivePollingExample)
+- **Code:** [`Sources/Mottzi/MistExamples/LivePollingExample`](https://github.com/mottzi/Vapor-Mist-examples/tree/main/Sources/Mottzi/MistExamples/LivePollingExample)
+
+</details>
+
+<details>
+<summary><strong>Deployer panel</strong></summary>
+
+Production-grade Mist UI over Fluent-backed deployments: parameterised `InstanceComponent` rows, `LiveComponent` queue lock and process badges, `ManualComponent` config summary, streamed build logs through `mist-stream`, strict websocket upgrade checks, and per-client expansion state for logs—not bundled with Vapor-Mist-examples.
+
+- **Project:** [Vapor-Deployer](https://github.com/mottzi/Vapor-Deployer)
+- **Code:** Mist-specific Swift under [`Sources/Deployer/Panel`](https://github.com/mottzi/Vapor-Deployer/tree/main/Sources/Deployer/Panel)
+- **Leaf templates:** [`Resources/Views/Deployer`](https://github.com/mottzi/Vapor-Deployer/tree/main/Resources/Views/Deployer)
 
 </details>

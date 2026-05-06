@@ -1,4 +1,4 @@
-// Move this file (mist.js) to: /Public 
+// Move this file (mist.js) to: /Public
 
 class MistSocket {
 
@@ -43,7 +43,7 @@ class MistSocket {
             if (acceptedComponents) {
                 acceptedComponents.split(',').forEach(component => {
                     const trimmed = component.trim();
-                    if (trimmed && !uniqueComponents.has(trimmed)) {
+                    if (trimmed && (!uniqueComponents.has(trimmed) || (!uniqueComponents.get(trimmed) && ssrReady))) {
                         uniqueComponents.set(trimmed, ssrReady);
                     }
                 });
