@@ -2,7 +2,7 @@ import Vapor
 import Fluent
 
 /// A unit addressed and updated per model instance.
-public protocol InstanceComponent: ModelComponent {
+public protocol InstanceComponent: ModelComponent, Sendable {
 
     /// Returns the model instances used for initial rendering.
     /// Throws when the database query fails; returns an empty array when no records exist.
