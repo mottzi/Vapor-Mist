@@ -229,6 +229,7 @@ final class MistIntegrationTests: XCTestCase
         
                 // test finished
                 await test.pass()
+                try? await ws.close()
             }
         }
         
