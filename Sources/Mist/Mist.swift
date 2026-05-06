@@ -7,7 +7,7 @@ public extension Application {
 
     /// Resolves a registered fragment component by type for server-side rendering.
     func mistComponent<C: FragmentComponent>(_ type: C.Type) async -> C? {
-        await mist.components.getComponent(named: String(describing: type)) as? C
+        await mist.components.getComponent(ofType: type)
     }
     
 }
