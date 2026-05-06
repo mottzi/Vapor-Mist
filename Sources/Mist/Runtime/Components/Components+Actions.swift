@@ -29,8 +29,8 @@ extension Components {
         activeRequests.insert(lockKey)
         defer { activeRequests.remove(lockKey) }
 
-        guard let componentActions = componentActions[component] else { return .failure("Component '\(component)' not found") }
-        guard let action = componentActions[actionName] else { return .failure("Action '\(actionName)' not found") }
+        guard let componentActions = componentActions[component]  else { return .failure("Component '\(component)' not found") }
+        guard let action = componentActions[actionName]           else { return .failure("Action '\(actionName)' not found") }
         guard let componentInstance = componentsByName[component] else { return .failure("Component '\(component)' not found") }
 
         let shouldSuspendUpdates = (componentInstance as? any FragmentComponent)?.pausesDuringAction == true
@@ -43,28 +43,15 @@ extension Components {
         await app.mist.clients.setStateIfUnchanged(state, ifCurrentlyMatches: snapshot, for: clientID, componentID: componentKey, default: componentInstance.defaultState)
 
         if case .success = result {
-            await refreshRenderedInstance(
+            await app.mist.delivery.sendInstanceUpdateAfterAction(
                 of: componentInstance,
                 modelID: targetID,
                 state: state,
-                for: clientID
+                to: clientID
             )
         }
         
         return result
-    }
-
-    /// Refreshes the rendered instance for the client after a successful action.
-    private func refreshRenderedInstance(
-        of component: any Component,
-        modelID: UUID?,
-        state: ComponentState,
-        for clientID: UUID
-    ) async {
-        guard let modelID else { return }
-        guard let instanceComponent = component as? any InstanceComponent else { return }
-        guard case .rendered(let html) = await instanceComponent.render(with: modelID, state: state, on: app) else { return }
-        await app.mist.clients.send(Message.InstanceUpdate(component: component.name, modelID: modelID, html: html), to: clientID)
     }
     
 }

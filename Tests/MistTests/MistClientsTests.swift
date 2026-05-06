@@ -124,14 +124,14 @@ final class MistClientsTests: XCTestCase
         await app.mist.clients.addSubscription("DummyRow3", to: clientID2)
         await app.mist.clients.addSubscription("DummyRow3", to: UUID())
         
-        let subscribers1 = await app.mist.clients.getSubscribers(of: "DummyRow1").map { $0.clientID }
-        XCTAssertEqual(subscribers1, [clientID0, clientID1])
+        let subscribers1 = Set(await app.mist.clients.getSubscribers(of: "DummyRow1").map { $0.clientID })
+        XCTAssertEqual(subscribers1, Set([clientID0, clientID1]))
         
-        let subscribers2 = await app.mist.clients.getSubscribers(of: "DummyRow2").map { $0.clientID }
-        XCTAssertEqual(subscribers2, [clientID1])
+        let subscribers2 = Set(await app.mist.clients.getSubscribers(of: "DummyRow2").map { $0.clientID })
+        XCTAssertEqual(subscribers2, Set([clientID1]))
         
-        let subscribers3 = await app.mist.clients.getSubscribers(of: "DummyRow3").map { $0.clientID }
-        XCTAssertEqual(subscribers3, [])
+        let subscribers3 = Set(await app.mist.clients.getSubscribers(of: "DummyRow3").map { $0.clientID })
+        XCTAssertEqual(subscribers3, Set())
     }
     
     // tests that reverse index is correctly maintained during subscription operations

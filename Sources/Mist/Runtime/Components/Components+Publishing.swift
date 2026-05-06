@@ -20,11 +20,10 @@ extension Components {
         
         await component.state.boot(
             render: { state in
-                guard case .rendered(let html) = await component.render(with: state, on: app) else { return nil }
-                return html
+                await app.mist.delivery.renderHTML(of: component, with: state)
             },
             broadcast: { html in
-                await app.mist.clients.broadcast(Message.QueryUpdate(component: component.name, html: html))
+                await app.mist.delivery.broadcastFragmentHTML(html, for: component.name)
             }
         )
         
@@ -38,11 +37,10 @@ extension Components {
         
         await component.state.boot(
             render: { state in
-                guard case .rendered(let html) = await component.render(with: state, on: app) else { return nil }
-                return html
+                await app.mist.delivery.renderHTML(of: component, with: state)
             },
             broadcast: { html in
-                await app.mist.clients.broadcast(Message.QueryUpdate(component: component.name, html: html))
+                await app.mist.delivery.broadcastFragmentHTML(html, for: component.name)
             }
         )
         
@@ -69,20 +67,19 @@ extension Components {
             guard let context = await component.poll(on: app.db) else {
                 await app.mist.components.setPollingState(.absent, for: component.name)
                 guard lastContext != nil else { return nil }
-                await app.mist.clients.broadcast(Message.QueryDelete(component: component.name))
+                await app.mist.delivery.broadcastFragmentResult(.absent, for: component.name)
                 return nil
             }
             
             guard context != lastContext else { return lastContext }
             
-            switch await component.render(with: context, on: app) {
-            case .rendered(let html):
+            if let html = await app.mist.delivery.renderHTML(of: component, with: context) {
                 await app.mist.components.setPollingState(.rendered(html), for: component.name)
-                await app.mist.clients.broadcast(Message.QueryUpdate(component: component.name, html: html))
+                await app.mist.delivery.broadcastFragmentHTML(html, for: component.name)
                 return context
-            case .absent, .failed:
-                return lastContext
             }
+
+            return lastContext
         }
         
         let startupTask = Task<C.FragmentContext?, Never> {
@@ -132,11 +129,11 @@ extension Components {
                 return await sendPollingStateIfAvailable(for: componentName, to: clientID)
                 
             case .rendered(let html):
-                await app.mist.clients.send(Message.QueryUpdate(component: componentName, html: html), to: clientID)
+                await app.mist.delivery.sendFragmentHTML(html, for: componentName, to: clientID)
                 return true
                 
             case .absent:
-                await app.mist.clients.send(Message.QueryDelete(component: componentName), to: clientID)
+                await app.mist.delivery.sendFragmentAbsence(for: componentName, to: clientID)
                 return true
         }
     }

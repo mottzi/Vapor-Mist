@@ -45,25 +45,9 @@ extension ModelListener
             guard let modelID = model.id else { continue }
             
             switch event {
-                case .creation:
-                    await app.mist.delivery.deliverInstanceMutation(
-                        .create,
-                        of: instance,
-                        modelID: modelID
-                    )
-
-                case .deletion:
-                    await app.mist.delivery.deliverInstanceDeletion(
-                        of: instance,
-                        modelID: modelID
-                    )
-
-                case .update:
-                    await app.mist.delivery.deliverInstanceMutation(
-                        .update,
-                        of: instance,
-                        modelID: modelID
-                    )
+            case .creation: await app.mist.delivery.deliverInstanceMutation(.create, of: instance, modelID: modelID)
+            case .deletion: await app.mist.delivery.deliverInstanceDeletion(of: instance, modelID: modelID)
+            case .update: await app.mist.delivery.deliverInstanceMutation(.update, of: instance, modelID: modelID)
             }
         }
         

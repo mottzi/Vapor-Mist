@@ -53,30 +53,32 @@ final class ComponentDeliveryTests: XCTestCase {
         
         try await app.startup()
         
-        var capturedWS: WebSocket? = nil
-        
-        try await WebSocket.connect(host: "localhost", port: 8080, path: "/socket", on: app.eventLoopGroup) { ws in
-            capturedWS = ws
-            Task {
-                do {
-                    try await test(ws, state)
-                } catch {
-                    await state.fail("Test block threw error: \\(error)")
-                }
+        let ws: WebSocket = try await withCheckedThrowingContinuation { continuation in
+            WebSocket.connect(
+                host: "localhost",
+                port: 8080,
+                path: "/socket",
+                on: app.eventLoopGroup
+            ) { ws in
+                continuation.resume(returning: ws)
+            }.whenFailure { error in
+                continuation.resume(throwing: error)
             }
         }
         
-        // Wait for client to connect and register
-        var id: UUID? = nil
+        try await test(ws, state)
+        
+        var clientID: UUID? = nil
         for _ in 0..<20 {
             if let captured = await state.clientID {
-                id = captured
+                clientID = captured
                 break
             }
             try await Task.sleep(for: .milliseconds(50))
         }
         
-        guard let clientID = id else {
+        guard let clientID else {
+            try await ws.close()
             XCTFail("Did not capture clientID in time")
             return
         }
@@ -86,17 +88,19 @@ final class ComponentDeliveryTests: XCTestCase {
         let startTime = Date()
         while await !state.finished {
             if let error = await state.error {
+                try await ws.close()
                 XCTFail(error)
-                break
+                return
             }
             if Date().timeIntervalSince(startTime) > 2.0 {
+                try await ws.close()
                 XCTFail("Test timed out")
-                break
+                return
             }
             try await Task.sleep(for: .milliseconds(50))
         }
         
-        try await capturedWS?.close()
+        try await ws.close()
     }
 
     func testFragmentResultRenderedSendsQueryUpdate() async throws {

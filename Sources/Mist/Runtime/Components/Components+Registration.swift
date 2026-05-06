@@ -75,7 +75,7 @@ extension Components {
         
         if await sendPollingStateIfAvailable(for: componentName, to: clientID) { return }
         guard let fragment = getComponent(named: componentName) as? any FragmentComponent else { return }
-        await fragment.sendCurrent(to: clientID, app: app)
+        await app.mist.delivery.sendCurrentFragment(fragment, to: clientID)
     }
 
 }

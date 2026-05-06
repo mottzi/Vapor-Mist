@@ -18,20 +18,14 @@ struct ComponentDelivery {
     }
 
     /// Renders a component context and returns deliverable HTML when rendering succeeds.
-    func renderHTML<Context: Encodable>(
-        of component: any Component,
-        with context: Context
-    ) async -> String? {
+    func renderHTML<Context: Encodable>(of component: any Component, with context: Context) async -> String? {
         let result = await component.render(with: context, on: app)
         guard case .rendered(let html) = result else { return nil }
         return html
     }
 
     /// Sends the current fragment state to one client.
-    func sendCurrentFragment(
-        _ component: any FragmentComponent,
-        to clientID: UUID
-    ) async {
+    func sendCurrentFragment(_ component: any FragmentComponent, to clientID: UUID) async {
         let result = await component.renderCurrent(app: app)
         await sendFragmentResult(result, for: component.name, to: clientID)
     }
@@ -43,76 +37,41 @@ struct ComponentDelivery {
     }
 
     /// Sends already-rendered fragment HTML to one client.
-    func sendFragmentHTML(
-        _ html: String,
-        for component: String,
-        to clientID: UUID
-    ) async {
-        await app.mist.clients.send(
-            Message.QueryUpdate(component: component, html: html),
-            to: clientID
-        )
+    func sendFragmentHTML(_ html: String, for component: String, to clientID: UUID) async {
+        await app.mist.clients.send(Message.QueryUpdate(component: component, html: html), to: clientID)
     }
 
     /// Sends a fragment absence to one client.
-    func sendFragmentAbsence(
-        for component: String,
-        to clientID: UUID
-    ) async {
-        await app.mist.clients.send(
-            Message.QueryDelete(component: component),
-            to: clientID
-        )
+    func sendFragmentAbsence(for component: String, to clientID: UUID) async {
+        await app.mist.clients.send(Message.QueryDelete(component: component), to: clientID)
     }
 
     /// Broadcasts already-rendered fragment HTML to subscribers.
-    func broadcastFragmentHTML(
-        _ html: String,
-        for component: String
-    ) async {
-        await app.mist.clients.broadcast(
-            Message.QueryUpdate(component: component, html: html)
-        )
+    func broadcastFragmentHTML(_ html: String, for component: String) async {
+        await app.mist.clients.broadcast(Message.QueryUpdate(component: component, html: html))
     }
 
     /// Sends a fragment render result to one client.
-    func sendFragmentResult(
-        _ result: RenderResult,
-        for component: String,
-        to clientID: UUID
-    ) async {
+    func sendFragmentResult(_ result: RenderResult, for component: String, to clientID: UUID) async {
         switch result {
-            case .rendered(let html):
-                await app.mist.clients.send(
-                    Message.QueryUpdate(component: component, html: html),
-                    to: clientID
-                )
-            case .absent:
-                await app.mist.clients.send(
-                    Message.QueryDelete(component: component),
-                    to: clientID
-                )
-            case .failed:
-                break
+        case .rendered(let html):
+            await app.mist.clients.send(Message.QueryUpdate(component: component, html: html), to: clientID)
+        case .absent:
+            await app.mist.clients.send(Message.QueryDelete(component: component), to: clientID)
+        case .failed:
+            break
         }
     }
 
     /// Broadcasts a fragment render result to subscribers.
-    func broadcastFragmentResult(
-        _ result: RenderResult,
-        for component: String
-    ) async {
+    func broadcastFragmentResult(_ result: RenderResult, for component: String) async {
         switch result {
-            case .rendered(let html):
-                await app.mist.clients.broadcast(
-                    Message.QueryUpdate(component: component, html: html)
-                )
-            case .absent:
-                await app.mist.clients.broadcast(
-                    Message.QueryDelete(component: component)
-                )
-            case .failed:
-                break
+        case .rendered(let html):
+            await app.mist.clients.broadcast(Message.QueryUpdate(component: component, html: html))
+        case .absent:
+            await app.mist.clients.broadcast(Message.QueryDelete(component: component))
+        case .failed:
+            break
         }
     }
 
@@ -134,24 +93,16 @@ struct ComponentDelivery {
                         componentID: modelID.uuidString,
                         default: component.defaultState
                     )
-
-                    guard case .rendered(let html) = await component.render(
-                        with: modelID,
-                        state: state,
-                        on: self.app
-                    ) else { return }
+                    let result = await component.render(with: modelID, state: state, on: self.app)
+                    guard case .rendered(let html) = result else { return }
 
                     switch mutation {
                     case .create:
-                        await self.app.mist.clients.send(
-                            Message.InstanceCreate(component: component.name, modelID: modelID, html: html),
-                            to: clientID
-                        )
+                        let msg = Message.InstanceCreate(component: component.name, modelID: modelID, html: html)
+                        await self.app.mist.clients.send(msg, to: clientID)
                     case .update:
-                        await self.app.mist.clients.send(
-                            Message.InstanceUpdate(component: component.name, modelID: modelID, html: html),
-                            to: clientID
-                        )
+                        let msg = Message.InstanceUpdate(component: component.name, modelID: modelID, html: html)
+                        await self.app.mist.clients.send(msg, to: clientID)
                     }
                 }
             }
@@ -159,18 +110,12 @@ struct ComponentDelivery {
     }
 
     /// Delivers an instance deletion and clears per-instance state for subscribed clients.
-    func deliverInstanceDeletion(
-        of component: any InstanceComponent,
-        modelID: UUID
-    ) async {
-        await app.mist.clients.clearState(
-            for: modelID.uuidString,
-            subscribedTo: component.name
-        )
-
-        await app.mist.clients.broadcast(
-            Message.InstanceDelete(component: component.name, modelID: modelID)
-        )
+    func deliverInstanceDeletion(of component: any InstanceComponent, modelID: UUID) async {
+        
+        await app.mist.clients.clearState(for: modelID.uuidString, subscribedTo: component.name)
+        
+        let deleteMessage = Message.InstanceDelete(component: component.name, modelID: modelID)
+        await app.mist.clients.broadcast(deleteMessage)
     }
 
     /// Refreshes one rendered instance after an action successfully mutates per-client state.
@@ -182,17 +127,11 @@ struct ComponentDelivery {
     ) async {
         guard let modelID else { return }
         guard let component = component as? any InstanceComponent else { return }
-
-        guard case .rendered(let html) = await component.render(
-            with: modelID,
-            state: state,
-            on: app
-        ) else { return }
-
-        await app.mist.clients.send(
-            Message.InstanceUpdate(component: component.name, modelID: modelID, html: html),
-            to: clientID
-        )
+        let result = await component.render(with: modelID, state: state, on: app)
+        guard case .rendered(let html) = result else { return }
+        
+        let updateMessage = Message.InstanceUpdate(component: component.name, modelID: modelID, html: html)
+        await app.mist.clients.send(updateMessage, to: clientID)
     }
 
 }
