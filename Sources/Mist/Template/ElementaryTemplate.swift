@@ -101,6 +101,10 @@ public extension HTMLAttribute where Tag: HTMLTrait.Attributes.Global {
         HTMLAttribute(name: "data-mist-sort-delay-ms", value: String(ms))
     }
     
+    static func mistDelay(ms: Int) -> HTMLAttribute {
+        HTMLAttribute(name: "mist-delay", value: String(ms))
+    }
+    
 }
 
 /// Derives an Elementary-backed template from `body(state:)` for live components.
