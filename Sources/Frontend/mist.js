@@ -6,6 +6,7 @@ class MistSocket {
         this.config = config;
         this.socket = null;
         this.streamBuffers = new Map();
+        this.throttledUpdates = new Map();
 
         this.timer = null;
         this.initialDelay = 1000;
@@ -138,6 +139,30 @@ class MistSocket {
                 update();
             }, 100);
         });
+    }
+
+    applyThrottledUpdate(key, delayMs, applyFn, data) {
+        let record = this.throttledUpdates.get(key);
+
+        if (record) {
+            record.pendingData = data;
+            return false;
+        }
+
+        applyFn(data);
+
+        record = {
+            pendingData: null,
+            timer: setTimeout(() => {
+                const r = this.throttledUpdates.get(key);
+                this.throttledUpdates.delete(key);
+                if (r && r.pendingData !== null) {
+                    this.applyThrottledUpdate(key, delayMs, applyFn, r.pendingData);
+                }
+            }, delayMs)
+        };
+        this.throttledUpdates.set(key, record);
+        return true;
     }
 
     streamKey(component, modelID, stream) {
@@ -332,6 +357,24 @@ class MistSocket {
         const elements = this.findComponentElements(component, modelID);
 
         if (elements.length > 0) {
+            const delay = elements[0].getAttribute('mist-delay');
+            if (delay) {
+                const delayMs = parseInt(delay, 10);
+                if (!isNaN(delayMs) && delayMs > 0) {
+                    const key = `instance:${component}:${modelID}`;
+                    const applied = this.applyThrottledUpdate(key, delayMs, (latestHTML) => {
+                        const currentElements = this.findComponentElements(component, modelID);
+                        if (currentElements.length > 0) {
+                            this.morphComponentElements(currentElements, latestHTML);
+                            this.reorderCollectionsForElements(currentElements);
+                            this.restoreStreams();
+                            this.bootBehaviors();
+                            console.log(`[Client] Component updated: ${component} (${modelID.substring(0, 8)})`);
+                        }
+                    }, html);
+                    return applied ? 'updated' : null;
+                }
+            }
             this.morphComponentElements(elements, html);
             this.reorderCollectionsForElements(elements);
             return 'updated';
@@ -350,6 +393,23 @@ class MistSocket {
         const elements = this.findComponentElements(component, null);
 
         if (elements.length > 0) {
+            const delay = elements[0].getAttribute('mist-delay');
+            if (delay) {
+                const delayMs = parseInt(delay, 10);
+                if (!isNaN(delayMs) && delayMs > 0) {
+                    const key = `query:${component}`;
+                    const applied = this.applyThrottledUpdate(key, delayMs, (latestHTML) => {
+                        const currentElements = this.findComponentElements(component, null);
+                        if (currentElements.length > 0) {
+                            this.morphComponentElements(currentElements, latestHTML);
+                            this.restoreStreams();
+                            this.bootBehaviors();
+                            console.log(`[Client] Component updated: ${component}`);
+                        }
+                    }, html);
+                    return applied ? 'updated' : null;
+                }
+            }
             this.morphComponentElements(elements, html);
             return 'updated';
         }
@@ -472,9 +532,13 @@ class MistSocket {
                         return;
                     }
 
-                    this.applyInstanceHTML(component, modelID, html);
-                    mutatedHTML = true;
-                    console.log(`[Client] Component updated: ${component} (${modelID.substring(0, 8)})`);
+                    const result = this.applyInstanceHTML(component, modelID, html);
+                    if (result) {
+                        mutatedHTML = true;
+                        if (result === 'updated') {
+                            console.log(`[Client] Component updated: ${component} (${modelID.substring(0, 8)})`);
+                        }
+                    }
                 }
                 else if (data.deleteInstanceComponent) {
                     const { component, modelID } = data.deleteInstanceComponent;
