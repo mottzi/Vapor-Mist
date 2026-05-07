@@ -64,8 +64,6 @@ extension Clients {
         for socket in sockets { socket.eventLoop.execute { socket.send(jsonString, promise: nil) } }
     }
 
-    func broadcast(_ create: Message.InstanceCreate) { broadcast(message: create) }
-    func broadcast(_ update: Message.InstanceUpdate) { broadcast(message: update) }
     func broadcast(_ delete: Message.InstanceDelete) { broadcast(message: delete) }
     func broadcast(_ update: Message.QueryUpdate)    { broadcast(message: update) }
     func broadcast(_ delete: Message.QueryDelete)    { broadcast(message: delete) }
@@ -109,14 +107,14 @@ extension Message {
 
 extension Message {
 
-    struct InstanceCreate: BroadcastableMessage, SendableMessage {
+    struct InstanceCreate: SendableMessage {
         let component: String
         let modelID: UUID
         let html: String
         var wireFormat: Message { .createInstanceComponent(component: component, modelID: modelID, html: html) }
     }
 
-    struct InstanceUpdate: BroadcastableMessage, SendableMessage {
+    struct InstanceUpdate: SendableMessage {
         let component: String
         let modelID: UUID
         let html: String
