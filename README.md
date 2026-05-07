@@ -116,7 +116,7 @@ Elementary templates:
 struct CounterComponent: ManualComponent {
 
     func body(state: CounterState) -> some HTML {
-        div(.mistComponent(name)) {
+        div(.mistComponent(name), .mistDelay(100)) { // Throttles updates to 100ms
             h2 { "Global Count" }
             div { "\(state.count)" }
             button(.mistAction("increment")) { "Increment Count" }
@@ -624,6 +624,8 @@ These appear in the Leaf template just like regular fields: `#(context.deploymen
 |---|---|
 | `mist-component="Name"` | Marks a component root; used for DOM targeting and subscriptions |
 | `mist-id="uuid"` | Instance identity for `InstanceComponent` |
+| `mist-ssr="true"` | Marks a component as SSR-ready to optimize initial connection |
+| `mist-delay="ms"` | Throttles component updates by the specified millisecond delay |
 | `mist-container="Name"` | Accepts dynamically inserted/removed component instances |
 | `mist-insert-position` | Where new instances are inserted — any `insertAdjacentHTML` position, default `beforeend` |
 | `mist-action="actionName"` | Triggers a server action on click |
