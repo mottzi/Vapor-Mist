@@ -37,14 +37,7 @@ public extension Component {
     
     /// Renders the component's template with any encodable context.
     func render<Context: Encodable>(with context: Context, on app: Application) async -> RenderResult {
-        do {
-            let html = try await template.render(context: context, componentName: name, using: app)
-            return .rendered(html)
-        } catch {
-            let templateType = String(describing: type(of: template))
-            app.logger.error("\(MistError.renderFailed(component: name, template: templateType, error))")
-            return .failed
-        }
+        await app.mist.renderer.render(self, with: context)
     }
     
 }

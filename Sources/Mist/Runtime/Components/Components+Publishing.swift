@@ -20,7 +20,7 @@ extension Components {
         
         await component.state.boot(
             render: { state in
-                await app.mist.delivery.renderHTML(of: component, with: state)
+                await app.mist.renderer.renderHTML(component, with: state)
             },
             broadcast: { html in
                 await app.mist.delivery.broadcastFragmentHTML(html, for: component.name)
@@ -37,7 +37,7 @@ extension Components {
         
         await component.state.boot(
             render: { state in
-                await app.mist.delivery.renderHTML(of: component, with: state)
+                await app.mist.renderer.renderHTML(component, with: state)
             },
             broadcast: { html in
                 await app.mist.delivery.broadcastFragmentHTML(html, for: component.name)
@@ -73,7 +73,7 @@ extension Components {
             
             guard context != lastContext else { return lastContext }
             
-            if let html = await app.mist.delivery.renderHTML(of: component, with: context) {
+            if let html = await app.mist.renderer.renderHTML(component, with: context) {
                 await app.mist.components.setPollingState(.rendered(html), for: component.name)
                 await app.mist.delivery.broadcastFragmentHTML(html, for: component.name)
                 return context

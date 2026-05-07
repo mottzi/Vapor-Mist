@@ -22,11 +22,7 @@ public extension ModelComponent {
     /// Renders the component's template from model-derived context.
     /// Logs and returns `.failed` when the database fetch throws; returns `.absent` when the model is not found.
     func render(with modelID: UUID, state: ComponentState? = nil, on app: Application) async -> RenderResult {
-        let context: ComponentContext?
-        do { context = try await makeContext(using: modelID, state: state, on: app.db) }
-        catch { app.logger.error("\(MistError.databaseFetchFailed("\(Self.self) id=\(modelID)", error))"); return .failed }
-        guard let context else { return .absent }
-        return await render(with: context, on: app)
+        await app.mist.renderer.renderModelComponent(self, modelID: modelID, state: state)
     }
 
     /// Builds render context from all tracked models matching a shared ID.

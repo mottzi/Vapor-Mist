@@ -9,5 +9,6 @@
 - **Query component**: A fragment component whose current render state is selected from a Fluent query.
 - **Component state**: Per-client mutable state used while rendering actions or interactive component instances.
 - **Component delivery**: The Mist runtime step that turns render results into client-visible effects such as fragment updates, fragment deletes, instance creates, instance updates, and instance deletes.
+- **Component rendering**: The Mist runtime step that turns a component template and render context into a `RenderResult`, including model context lookup, absent/failed result mapping, template execution, and render error logging.
 - **Subscription**: A client's declared interest in receiving updates for a component name.
 - **Stream**: Append-only text content scoped to a component instance and replayed to new subscribers.

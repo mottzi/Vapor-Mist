@@ -17,22 +17,15 @@ struct ComponentDelivery {
         case update
     }
 
-    /// Renders a component context and returns deliverable HTML when rendering succeeds.
-    func renderHTML<Context: Encodable>(of component: any Component, with context: Context) async -> String? {
-        let result = await component.render(with: context, on: app)
-        guard case .rendered(let html) = result else { return nil }
-        return html
-    }
-
     /// Sends the current fragment state to one client.
     func sendCurrentFragment(_ component: any FragmentComponent, to clientID: UUID) async {
-        let result = await component.renderCurrent(app: app)
+        let result = await app.mist.renderer.renderCurrentFragment(component)
         await sendFragmentResult(result, for: component.name, to: clientID)
     }
 
     /// Broadcasts the current fragment state to subscribers.
     func broadcastCurrentFragment(_ component: any FragmentComponent) async {
-        let result = await component.renderCurrent(app: app)
+        let result = await app.mist.renderer.renderCurrentFragment(component)
         await broadcastFragmentResult(result, for: component.name)
     }
 
@@ -93,7 +86,7 @@ struct ComponentDelivery {
                         componentID: modelID.uuidString,
                         default: component.defaultState
                     )
-                    let result = await component.render(with: modelID, state: state, on: self.app)
+                    let result = await self.app.mist.renderer.renderModelComponent(component, modelID: modelID, state: state)
                     guard case .rendered(let html) = result else { return }
 
                     switch mutation {
@@ -127,7 +120,7 @@ struct ComponentDelivery {
     ) async {
         guard let modelID else { return }
         guard let component = component as? any InstanceComponent else { return }
-        let result = await component.render(with: modelID, state: state, on: app)
+        let result = await app.mist.renderer.renderModelComponent(component, modelID: modelID, state: state)
         guard case .rendered(let html) = result else { return }
         
         let updateMessage = Message.InstanceUpdate(component: component.name, modelID: modelID, html: html)
