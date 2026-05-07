@@ -3,12 +3,12 @@ import Vapor
 extension MistInterface {
 
     /// Runtime delivery adapter that turns component render outcomes into client-visible effects.
-    var delivery: ComponentDelivery { ComponentDelivery(app: app) }
+    var delivery: Delivery { Delivery(app: app) }
 
 }
 
 /// Executes the Mist component delivery policy through the runtime client registry.
-struct ComponentDelivery {
+struct Delivery {
 
     let app: Application
 

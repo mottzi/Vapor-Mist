@@ -88,7 +88,8 @@ extension Socket.Connection {
             case .failure(let message): message ?? "Failure"
         }
 
-        let message = Message.ActionResultMessage(component: component, targetID: targetID, action: action, result: result, message: resultMessage)
+        let message = Message.ActionResultMessage(component: component,
+            targetID: targetID, action: action, result: result, message: resultMessage)
         await app.mist.clients.send(message, to: clientID)
     }
 
@@ -109,11 +110,5 @@ extension Socket {
             self.clientID = UUID()
         }
     }
-    
-}
-
-extension UUID {
-    
-    var short: String { String(uuidString.prefix(8)) }
     
 }
