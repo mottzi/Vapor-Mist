@@ -47,15 +47,14 @@ public struct ModelContext: Encodable, Sendable {
 }
 
 /// Render context for one model-backed component and its per-client state.
-@dynamicMemberLookup
 public struct ComponentContext: Encodable, Sendable {
     
     public let context: ModelContext
-    public let state: DynamicStateProxy
+    public let state: ComponentState
     
     public init(context: ModelContext, state: ComponentState) {
         self.context = context
-        self.state = DynamicStateProxy(raw: state)
+        self.state = state
     }
     
     /// Retrieves a strongly-typed model from the underlying model context.
@@ -63,10 +62,10 @@ public struct ComponentContext: Encodable, Sendable {
         context.model(type)
     }
     
-    /// Returns a dynamic proxy for the given lowercase model name.
-    public subscript(dynamicMember name: String) -> DynamicModel? {
-        guard let model = context.model(named: name) else { return nil }
-        return DynamicModel(model: model)
+    /// Retrieves a property directly from a tracked model using a type-safe KeyPath.
+    public subscript<M: Model, T>(keyPath: KeyPath<M, T>) -> T? {
+        guard let model = context.model(M.self) else { return nil }
+        return model[keyPath: keyPath]
     }
     
 }
