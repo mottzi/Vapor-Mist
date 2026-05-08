@@ -4,9 +4,8 @@ import Fluent
 /// A renderable unit whose rendering and refresh semantics are model-driven.
 public protocol ModelComponent: Component {
 
-    associatedtype Models = [any Model.Type]
     /// Model types Mist tracks for rendering and listener registration.
-    var models: Models { get }
+    var models: [any Model.Type] { get }
 
     /// Decides whether a model event should refresh this component.
     func shouldUpdate<M: Model>(for model: M) -> Bool
@@ -15,15 +14,9 @@ public protocol ModelComponent: Component {
 
 public extension ModelComponent {
 
-    var _modelTypes: [any Model.Type] {
-        if let array = models as? [any Model.Type] { return array }
-        if let single = models as? any Model.Type { return [single] }
-        return Mirror(reflecting: models).children.compactMap { $0.value as? any Model.Type }
-    }
-
     /// Default: refresh when the affected model type appears in `models`.
     func shouldUpdate<M: Model>(for model: M) -> Bool {
-        _modelTypes.contains { $0 == M.self }
+        models.contains { $0 == M.self }
     }
 
     /// Renders the component's template from model-derived context.
@@ -37,7 +30,7 @@ public extension ModelComponent {
 
         var container = ModelContext()
 
-        for model in _modelTypes {
+        for model in models {
             guard let modelData = try await model.find(id: modelID, on: db) else { continue }
             container.add(modelData, as: model)
         }
@@ -51,14 +44,13 @@ public extension ModelComponent {
     /// Only fetches secondary tracked model types by ID; avoids re-fetching the primary.
     func makeContext(from primaryModel: any Model, state: ComponentState? = nil, on db: Database) async throws -> ComponentContext? {
 
-        let types = _modelTypes
-        guard let primaryModelType = types.first else { return nil }
+        guard let primaryModelType = models.first else { return nil }
 
         var container = ModelContext()
         container.add(primaryModel, as: primaryModelType)
 
         if let modelID = primaryModel.id {
-            for modelType in types.dropFirst() {
+            for modelType in models.dropFirst() {
                 guard let modelData = try await modelType.find(id: modelID, on: db) else { continue }
                 container.add(modelData, as: modelType)
             }

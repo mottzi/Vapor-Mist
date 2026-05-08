@@ -14,14 +14,14 @@ public protocol QueryComponent: FragmentComponent, ModelComponent {
     associatedtype Body = LeafRenderPath
 
     /// Returns the component's HTML body from current state. Implement for Elementary-backed rendering.
-    func body(context: TypedContext<Self>) -> Body
+    func body(context: ComponentContext) -> Body
     
 }
 
 public extension QueryComponent where Body == LeafRenderPath {
 
     /// Leaf path: body is never called.
-    func body(context: TypedContext<Self>) -> LeafRenderPath { fatalError("Leaf components do not use a body function") }
+    func body(context: ComponentContext) -> LeafRenderPath { fatalError("Leaf components do not use a body function") }
 
 }
 
