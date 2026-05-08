@@ -1,18 +1,20 @@
 import Vapor
 import Fluent
 
+public typealias SendableEncodable = Encodable & Sendable
+
 /// A database model that can be observed and encoded in component rendering.
-public protocol Model: Fluent.Model where IDValue == UUID {
+public protocol Model: Fluent.Model, Sendable where IDValue == UUID {
     
     /// Additional computed values merged with the model's fields.
-    var computedProperties: [String: any Encodable] { get }
+    var computedProperties: [String: any SendableEncodable] { get }
     
 }
 
 public extension Model {
     
     /// Default: a model has no computed template values.
-    var computedProperties: [String: any Encodable] { [:] }
+    var computedProperties: [String: any SendableEncodable] { [:] }
     
 }
 

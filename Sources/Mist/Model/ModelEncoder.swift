@@ -1,14 +1,14 @@
 import Vapor
 
 /// Represents a model together with additional fields for encoding.
-struct ModelEncoder: Encodable {
+struct ModelEncoder: Encodable, Sendable {
 
     private static let jsonEncoder = JSONEncoder()
 
     let model: any Model
-    let additionalFields: [String: any Encodable]
+    let additionalFields: [String: any SendableEncodable]
 
-    init(model: any Model, adding additionalFields: [String : any Encodable]) {
+    init(model: any Model, adding additionalFields: [String : any SendableEncodable]) {
         self.model = model
         self.additionalFields = additionalFields
     }

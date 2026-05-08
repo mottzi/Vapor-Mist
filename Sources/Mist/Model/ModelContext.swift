@@ -2,7 +2,7 @@ import Foundation
 
 /// Collection of models used to build template rendering context.
 /// Computed properties are merged when the models are encoded.
-public struct ModelContext: Encodable {
+public struct ModelContext: Encodable, Sendable {
     
     /// Internal storage of models.
     private var nameToModel: [String: any Model] = [:]
@@ -42,7 +42,7 @@ public struct ModelContext: Encodable {
 }
 
 /// Render context for one model-backed component and its per-client state.
-public struct ComponentContext: Encodable {
+public struct ComponentContext: Encodable, Sendable {
     
     public let context: ModelContext
     public let state: ComponentState
@@ -60,7 +60,7 @@ public struct ComponentContext: Encodable {
 }
 
 /// Render context for components that render multiple model-backed entries.
-public struct ComponentContexts: Encodable {
+public struct ComponentContexts: Encodable, Sendable {
     
     public let contexts: [ModelContext]
     
