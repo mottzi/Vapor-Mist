@@ -67,6 +67,12 @@ public struct ComponentContext: Encodable, Sendable {
         guard let model = context.model(M.self) else { return nil }
         return model[keyPath: keyPath]
     }
+
+    /// Retrieves an optional property directly from a tracked model, flattening the result.
+    public subscript<M: Model, T>(keyPath: KeyPath<M, T?>) -> T? {
+        guard let model = context.model(M.self) else { return nil }
+        return model[keyPath: keyPath]
+    }
     
 }
 
