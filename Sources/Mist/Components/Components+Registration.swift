@@ -12,7 +12,7 @@ extension Components {
                 )
                 continue
             }
-            let observedModels = (component as? any ModelComponent)?.models ?? []
+            let observedModels = (component as? any ModelComponent)?._modelTypes ?? []
             
             for model in observedModels where !hasListeners(using: model) {
                 model.registerListener(with: app)

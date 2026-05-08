@@ -12,14 +12,7 @@ public protocol InstanceComponent: ModelComponent, Sendable {
     associatedtype Body = LeafRenderPath
 
     /// Returns the component's HTML body from current state. Implement for Elementary-backed rendering.
-    func body(context: ComponentContext) -> Body
-
-}
-
-public extension InstanceComponent where Body == LeafRenderPath {
-
-    /// Leaf path: body is never called.
-    func body(context: ComponentContext) -> LeafRenderPath { fatalError("Leaf components do not use a body function") }
+    func body(context: TypedContext<Self>) -> Body
 
 }
 
@@ -27,9 +20,20 @@ public extension InstanceComponent {
 
     /// Default: loads all records of the first tracked model type.
     func allModels(on db: Database) async throws -> [any Model] {
-        guard let primaryModelType = models.first else { return [] }
+        guard let primaryModelType = _modelTypes.first else { return [] }
         return try await primaryModelType.findAll(on: db)
     }
+
+}
+
+public extension InstanceComponent where Body == LeafRenderPath {
+
+    /// Leaf path: body is never called.
+    func body(context: TypedContext<Self>) -> LeafRenderPath { fatalError("Leaf components do not use a body function") }
+
+}
+
+public extension InstanceComponent {
 
     /// Builds render context for all model instances returned by `allModels(on:)`.
     /// Throws when `allModels` fails (total failure). Per-instance context errors are logged and skipped.

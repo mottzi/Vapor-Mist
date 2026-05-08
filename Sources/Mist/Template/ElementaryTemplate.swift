@@ -138,7 +138,10 @@ public extension PollingComponent where Body: HTML {
 public extension InstanceComponent where Body: HTML {
 
     var template: any Template {
-        ElementaryTemplate<ComponentContext, Body> { [self] context in body(context: context) }
+        ElementaryTemplate<ComponentContext, Body> { [self] context in 
+            let typedContext = TypedContext<Self>(raw: context)
+            return body(context: typedContext)
+        }
     }
 
 }
@@ -147,7 +150,10 @@ public extension InstanceComponent where Body: HTML {
 public extension QueryComponent where Body: HTML {
 
     var template: any Template {
-        ElementaryTemplate<ComponentContext, Body> { [self] context in body(context: context) }
+        ElementaryTemplate<ComponentContext, Body> { [self] context in 
+            let typedContext = TypedContext<Self>(raw: context)
+            return body(context: typedContext)
+        }
     }
 
 }
