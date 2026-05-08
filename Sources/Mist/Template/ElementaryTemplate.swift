@@ -133,3 +133,28 @@ public extension PollingComponent where Body: HTML {
     }
 
 }
+
+/// Model-backed component rendered by Elementary from a strongly typed context.
+public protocol ElementaryModelComponent: TypedModelComponent {
+
+    /// HTML body type returned by the Elementary template.
+    associatedtype Body: HTML
+
+    /// Returns this component's HTML body from its template-native context.
+    func body(context: TemplateContext) -> Body
+
+}
+
+public extension ElementaryModelComponent {
+
+    var template: any Template {
+        ElementaryTemplate<TemplateContext, Body> { [self] context in body(context: context) }
+    }
+
+}
+
+/// Instance component rendered by Elementary from a strongly typed context.
+public protocol ElementaryInstanceComponent: TypedInstanceComponent, ElementaryModelComponent {}
+
+/// Query component rendered by Elementary from a strongly typed context.
+public protocol ElementaryQueryComponent: TypedQueryComponent, ElementaryModelComponent {}
