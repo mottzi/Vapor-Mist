@@ -134,3 +134,21 @@ public extension PollingComponent where Body: HTML {
 
 }
 
+/// Derives an Elementary-backed template from `body(context:)` for instance components.
+public extension InstanceComponent where Body: HTML {
+
+    var template: any Template {
+        ElementaryTemplate<ComponentContext, Body> { [self] context in body(context: context) }
+    }
+
+}
+
+/// Derives an Elementary-backed template from `body(context:)` for query components.
+public extension QueryComponent where Body: HTML {
+
+    var template: any Template {
+        ElementaryTemplate<ComponentContext, Body> { [self] context in body(context: context) }
+    }
+
+}
+

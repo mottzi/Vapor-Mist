@@ -8,6 +8,19 @@ public protocol InstanceComponent: ModelComponent, Sendable {
     /// Throws when the database query fails; returns an empty array when no records exist.
     func allModels(on db: Database) async throws -> [any Model]
 
+    /// HTML body type returned by Elementary-backed components. Defaults to `LeafRenderPath` for Leaf-backed components.
+    associatedtype Body = LeafRenderPath
+
+    /// Returns the component's HTML body from current state. Implement for Elementary-backed rendering.
+    func body(context: ComponentContext) -> Body
+
+}
+
+public extension InstanceComponent where Body == LeafRenderPath {
+
+    /// Leaf path: body is never called.
+    func body(context: ComponentContext) -> LeafRenderPath { fatalError("Leaf components do not use a body function") }
+
 }
 
 public extension InstanceComponent {

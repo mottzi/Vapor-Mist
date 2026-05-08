@@ -9,7 +9,20 @@ public protocol QueryComponent: FragmentComponent, ModelComponent {
     
     /// Returns the model currently backing this fragment.
     func query(on db: Database) async throws -> FragmentModel?
+
+    /// HTML body type returned by Elementary-backed components. Defaults to `LeafRenderPath` for Leaf-backed components.
+    associatedtype Body = LeafRenderPath
+
+    /// Returns the component's HTML body from current state. Implement for Elementary-backed rendering.
+    func body(context: ComponentContext) -> Body
     
+}
+
+public extension QueryComponent where Body == LeafRenderPath {
+
+    /// Leaf path: body is never called.
+    func body(context: ComponentContext) -> LeafRenderPath { fatalError("Leaf components do not use a body function") }
+
 }
 
 public extension QueryComponent {
