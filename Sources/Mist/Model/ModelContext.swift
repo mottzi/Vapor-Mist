@@ -62,6 +62,11 @@ public struct ComponentContext: Encodable, Sendable {
         context.model(type)
     }
     
+    /// Retrieves a strongly-typed model from the underlying model context via subscript.
+    public subscript<M: Model>(type: M.Type) -> M? {
+        context.model(type)
+    }
+    
     /// Retrieves a property directly from a tracked model using a type-safe KeyPath.
     public subscript<M: Model, T>(keyPath: KeyPath<M, T>) -> T? {
         guard let model = context.model(M.self) else { return nil }
