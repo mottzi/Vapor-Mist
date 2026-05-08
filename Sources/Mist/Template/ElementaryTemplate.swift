@@ -51,9 +51,12 @@ public extension HTMLAttribute where Tag: HTMLTrait.Attributes.Global {
     static func mistId(_ value: String) -> HTMLAttribute {
         HTMLAttribute(name: "mist-id", value: value)
     }
-    
-    static func mistAction(_ value: String) -> HTMLAttribute {
-        HTMLAttribute(name: "mist-action", value: value)
+
+    static func mistId(_ uuid: UUID?) -> HTMLAttribute {
+        HTMLAttribute(name: "mist-id", value: uuid?.uuidString ?? "")
+    }
+
+    static func mistAction(_ value: String) -> HTMLAttribute {        HTMLAttribute(name: "mist-action", value: value)
     }
 
     static func mistActionsFor(_ component: String) -> HTMLAttribute {
