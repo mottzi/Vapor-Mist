@@ -39,22 +39,34 @@ public struct ModelContext: Encodable, Sendable {
         return nameToModel[name] as? M
     }
     
+    /// Retrieves a model dynamically by its lowercase type name.
+    public func model(named name: String) -> (any Model)? {
+        nameToModel[name.lowercased()]
+    }
+    
 }
 
 /// Render context for one model-backed component and its per-client state.
+@dynamicMemberLookup
 public struct ComponentContext: Encodable, Sendable {
     
     public let context: ModelContext
-    public let state: ComponentState
+    public let state: DynamicStateProxy
     
     public init(context: ModelContext, state: ComponentState) {
         self.context = context
-        self.state = state
+        self.state = DynamicStateProxy(raw: state)
     }
     
     /// Retrieves a strongly-typed model from the underlying model context.
     public func model<M: Model>(_ type: M.Type) -> M? {
         context.model(type)
+    }
+    
+    /// Returns a dynamic proxy for the given lowercase model name.
+    public subscript(dynamicMember name: String) -> DynamicModel? {
+        guard let model = context.model(named: name) else { return nil }
+        return DynamicModel(model: model)
     }
     
 }
