@@ -33,74 +33,46 @@ struct TestModelComponent: Mist.InstanceComponent {
     let models: [any Mist.Model.Type] = [DummyModel1.self]
 }
 
-struct RendererTypedInstanceContext: Encodable, Equatable {
-    let id: UUID
-    let primaryText: String
-    let secondaryText: String?
-    let detailsExpanded: Bool
-}
-
-struct RendererElementaryInstanceComponent: Mist.ElementaryInstanceComponent {
-    typealias InstanceModel = DummyModel1
-    typealias TemplateContext = RendererTypedInstanceContext
-
+struct RendererElementaryInstanceComponent: Mist.InstanceComponent {
     let name = "RendererElementaryInstanceComponent"
     let models: [any Mist.Model.Type] = [DummyModel1.self, DummyModel2.self]
     let defaultState: ComponentState = ["detailsExpanded": .bool(false)]
 
-    func makeTemplateContext(
-        from primaryModel: DummyModel1,
-        state: ComponentState?,
-        on db: Database
-    ) async throws -> RendererTypedInstanceContext? {
-
-        guard let id = primaryModel.id else { return nil }
-        let secondary = try await DummyModel2.find(id, on: db)
-
-        return RendererTypedInstanceContext(
-            id: id,
-            primaryText: primaryModel.text,
-            secondaryText: secondary?.text2,
-            detailsExpanded: state?["detailsExpanded"]?.bool ?? false
-        )
+    var template: any Mist.Template {
+        ElementaryTemplate<ComponentContext, _> { [self] context in body(context: context) }
     }
 
-    func body(context: RendererTypedInstanceContext) -> some HTML {
-        div(.mistComponent(name), .mistId(context.id.uuidString)) {
-            span { context.primaryText }
-            if let secondaryText = context.secondaryText {
-                span { secondaryText }
+    func body(context: ComponentContext) -> some HTML {
+        let primary = context.model(DummyModel1.self)!
+        let secondary = context.model(DummyModel2.self)
+        let detailsExpanded = context.state["detailsExpanded"]?.bool ?? false
+        
+        return div(.mistComponent(name), .mistId(primary.id!.uuidString)) {
+            span { primary.text }
+            if let secondary {
+                span { secondary.text2 }
             }
-            span { context.detailsExpanded ? "open" : "closed" }
+            span { detailsExpanded ? "open" : "closed" }
         }
     }
 }
 
-struct RendererTypedQueryContext: Encodable, Equatable {
-    let text: String
-}
-
-struct RendererElementaryQueryComponent: Mist.ElementaryQueryComponent {
+struct RendererElementaryQueryComponent: Mist.QueryComponent {
     typealias FragmentModel = DummyModel1
-    typealias TemplateContext = RendererTypedQueryContext
-
     let name = "RendererElementaryQueryComponent"
 
     func query(on db: Database) async throws -> DummyModel1? {
         try await DummyModel1.query(on: db).first()
     }
 
-    func makeTemplateContext(
-        from model: DummyModel1,
-        state: ComponentState?,
-        on db: Database
-    ) async throws -> RendererTypedQueryContext? {
-        RendererTypedQueryContext(text: model.text)
+    var template: any Mist.Template {
+        ElementaryTemplate<ComponentContext, _> { [self] context in body(context: context) }
     }
 
-    func body(context: RendererTypedQueryContext) -> some HTML {
-        div(.mistComponent(name)) {
-            span { context.text }
+    func body(context: ComponentContext) -> some HTML {
+        let primary = context.model(DummyModel1.self)!
+        return div(.mistComponent(name)) {
+            span { primary.text }
         }
     }
 }
@@ -141,7 +113,6 @@ final class ComponentRendererTests: XCTestCase {
         let result = await app.mist.renderer.render(component, with: ["value": "x"])
         
         if case .failed = result {
-            // expected
         } else {
             XCTFail("Expected .failed, got \(result)")
         }
@@ -167,14 +138,12 @@ final class ComponentRendererTests: XCTestCase {
         let result = await app.mist.renderer.renderModelComponent(component, modelID: UUID())
         
         if case .absent = result {
-            // expected
         } else {
             XCTFail("Expected .absent, got \(result)")
         }
     }
 
     func testRenderModelUsesComponentState() async throws {
-        // Here we just test it doesn't fail when dummy model exists
         let modelID = UUID()
         let model1 = DummyModel1(id: modelID, text: "test")
         try await model1.create(on: app.db)
@@ -189,7 +158,7 @@ final class ComponentRendererTests: XCTestCase {
         }
     }
 
-    func testElementaryInstanceComponentReceivesTypedContext() async throws {
+    func testElementaryInstanceComponentReceivesComponentContext() async throws {
         let modelID = UUID()
         let model1 = DummyModel1(id: modelID, text: "primary")
         let model2 = DummyModel2(id: modelID, text2: "secondary")
@@ -214,26 +183,7 @@ final class ComponentRendererTests: XCTestCase {
         XCTAssertTrue(html.contains("open"))
     }
 
-    func testTypedInstanceComponentBuildsInitialSSRContexts() async throws {
-        let modelID = UUID()
-        let model1 = DummyModel1(id: modelID, text: "initial primary")
-        let model2 = DummyModel2(id: modelID, text2: "initial secondary")
-        try await model1.create(on: app.db)
-        try await model2.create(on: app.db)
-
-        let contexts = try await RendererElementaryInstanceComponent().makeTemplateContexts(ofAll: app.db)
-
-        XCTAssertEqual(contexts, [
-            RendererTypedInstanceContext(
-                id: modelID,
-                primaryText: "initial primary",
-                secondaryText: "initial secondary",
-                detailsExpanded: false
-            )
-        ])
-    }
-
-    func testElementaryQueryComponentReceivesTypedContext() async throws {
+    func testElementaryQueryComponentReceivesComponentContext() async throws {
         let model = DummyModel1(text: "queried")
         try await model.create(on: app.db)
 

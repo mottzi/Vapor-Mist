@@ -33,13 +33,9 @@ struct Renderer {
         state: ComponentState? = nil
     ) async -> RenderResult {
         
-        let context: (any Encodable)?
+        let context: ComponentContext?
         do {
-            if let typedComponent = component as? any TypedModelComponent {
-                context = try await typedComponent.makeAnyTemplateContext(using: modelID, state: state, on: app.db)
-            } else {
-                context = try await component.makeContext(using: modelID, state: state, on: app.db)
-            }
+            context = try await component.makeContext(using: modelID, state: state, on: app.db)
         } catch {
             app.logger.error("\(MistError.databaseFetchFailed("\(type(of: component)) id=\(modelID)", error))")
             return .failed

@@ -40,39 +40,3 @@ public extension QueryComponent {
     
 }
 
-/// Strongly typed query component support for template backends that should
-/// receive Swift context values directly.
-public protocol TypedQueryComponent: QueryComponent, TypedModelComponent {
-
-    /// Builds a template-native context from the typed queried model.
-    func makeTemplateContext(
-        from model: FragmentModel,
-        state: ComponentState?,
-        on db: Database
-    ) async throws -> TemplateContext?
-
-}
-
-public extension TypedQueryComponent {
-
-    func makeTemplateContext(
-        using modelID: UUID,
-        state: ComponentState? = nil,
-        on db: Database
-    ) async throws -> TemplateContext? {
-
-        guard let model = try await FragmentModel.find(modelID, on: db) else { return nil }
-        return try await makeTemplateContext(from: model, state: state, on: db)
-    }
-
-    func makeTemplateContext(
-        from primaryModel: any Model,
-        state: ComponentState? = nil,
-        on db: Database
-    ) async throws -> TemplateContext? {
-
-        guard let model = primaryModel as? FragmentModel else { return nil }
-        return try await makeTemplateContext(from: model, state: state, on: db)
-    }
-
-}

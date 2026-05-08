@@ -33,6 +33,12 @@ public struct ModelContext: Encodable {
     
     public init() {}
     
+    /// Retrieves a strongly-typed model from the context using its Swift type name.
+    public func model<M: Model>(_ type: M.Type) -> M? {
+        let name = String(describing: type).lowercased()
+        return nameToModel[name] as? M
+    }
+    
 }
 
 /// Render context for one model-backed component and its per-client state.
@@ -44,6 +50,11 @@ public struct ComponentContext: Encodable {
     public init(context: ModelContext, state: ComponentState) {
         self.context = context
         self.state = state
+    }
+    
+    /// Retrieves a strongly-typed model from the underlying model context.
+    public func model<M: Model>(_ type: M.Type) -> M? {
+        context.model(type)
     }
     
 }
