@@ -57,7 +57,7 @@ final class ComponentDeliveryTests: XCTestCase {
         let ws: WebSocket = try await withCheckedThrowingContinuation { continuation in
             WebSocket.connect(
                 host: "localhost",
-                port: 8080,
+                port: app.http.server.shared.localAddress?.port ?? 8080,
                 path: "/socket",
                 on: app.eventLoopGroup
             ) { ws in

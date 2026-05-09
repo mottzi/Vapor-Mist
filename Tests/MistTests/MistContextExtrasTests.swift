@@ -22,7 +22,7 @@ final class TestModelWithExtras: Mist.Model, Content, @unchecked Sendable
         self.count = count
     }
     
-    var computedProperties: [String: any Encodable]
+    var computedProperties: [String: any SendableEncodable]
     {
         [
             "extraString": "computed value",
@@ -234,9 +234,9 @@ final class MistContextExtrasTests: XCTestCase
                 self.title = title
             }
             
-            var computedProperties: [String: any Encodable]
+            var computedProperties: [String: any SendableEncodable]
             {
-                struct NestedData: Encodable
+                struct NestedData: SendableEncodable
                 {
                     let nested1: String
                     let nested2: Int
