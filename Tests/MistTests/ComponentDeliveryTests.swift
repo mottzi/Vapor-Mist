@@ -10,6 +10,7 @@ final class ComponentDeliveryTests: XCTestCase {
 
     override func setUp() async throws {
         app = try await Application.make(.testing)
+        app.http.server.configuration.port = 0
         app.databases.use(.sqlite(.memory), as: .sqlite)
         app.views.use(.leaf)
         app.migrations.add(DummyModel1.Table())

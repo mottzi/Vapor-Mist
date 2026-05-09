@@ -11,6 +11,7 @@ final class MistIntegrationTests: XCTestCase
     func testSubscriptionFlow() async throws
     {
         let app = try await Application.make(.testing)
+        app.http.server.configuration.port = 0
         app.databases.use(.sqlite(.memory), as: .sqlite)
         
         // Configure Leaf as the view renderer
@@ -107,6 +108,7 @@ final class MistIntegrationTests: XCTestCase
         
         // set up application and database
         let app = try await Application.make(.testing)
+        app.http.server.configuration.port = 0
         app.databases.use(.sqlite(.memory), as: .sqlite)
         
         // Configure Leaf as the view renderer

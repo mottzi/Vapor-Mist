@@ -61,6 +61,7 @@ final class MistContextExtrasTests: XCTestCase
     {
         // Set up application and database
         let app = try await Application.make(.testing)
+        app.http.server.configuration.port = 0
         app.databases.use(.sqlite(.memory), as: .sqlite)
         
         // Add migrations
@@ -152,6 +153,7 @@ final class MistContextExtrasTests: XCTestCase
     {
         // Test that models without extras still work correctly
         let app = try await Application.make(.testing)
+        app.http.server.configuration.port = 0
         app.databases.use(.sqlite(.memory), as: .sqlite)
         
         app.migrations.add(TestModelWithExtras.Table())
@@ -209,6 +211,7 @@ final class MistContextExtrasTests: XCTestCase
     {
         // Test model with complex nested extras
         let app = try await Application.make(.testing)
+        app.http.server.configuration.port = 0
         app.databases.use(.sqlite(.memory), as: .sqlite)
         
         app.migrations.add(TestModelWithExtras.Table())
