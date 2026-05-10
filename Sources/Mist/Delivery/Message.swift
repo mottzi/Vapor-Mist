@@ -2,6 +2,8 @@ import Vapor
 
 /// Message exchanged between clients and the runtime over a socket.
 enum Message: Codable {
+    
+    case ping(Bool)
 
     case subscribe(component: String, ssrReady: Bool)
     case action(component: String, targetID: UUID?, action: String)

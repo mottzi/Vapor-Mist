@@ -43,6 +43,9 @@ extension Socket.Connection {
         catch { app.logger.warning("\(MistError.messageDecodeFailed(text, error))"); return }
         
         switch message {
+            case .ping(_):
+                socket.send(#"{"pong":true}"#, promise: nil)
+                
             case .subscribe(let component, let ssrReady):
                 await handleSubscription(of: component, ssrReady: ssrReady)
             
