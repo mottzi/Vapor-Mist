@@ -38,21 +38,14 @@ extension Socket.Connection {
     func onText(_ text: String) async {
         
         guard let data = text.data(using: .utf8) else { return }
-
-        // Handle ping before full Message decode — { "ping": true } has no Message case
-        // and would otherwise throw a decode warning on every heartbeat tick.
-        if let raw = try? JSONDecoder().decode([String: Bool].self, from: data),
-           raw["ping"] == true {
-            let pong = #"{"pong":true}"#
-            socket.send(pong, promise: nil)
-            return
-        }
-
         let message: Message
         do { message = try JSONDecoder().decode(Message.self, from: data) }
         catch { app.logger.warning("\(MistError.messageDecodeFailed(text, error))"); return }
         
         switch message {
+            case .ping(_):
+                socket.send(#"{"pong":true}"#, promise: nil)
+
             case .subscribe(let component, let ssrReady):
                 await handleSubscription(of: component, ssrReady: ssrReady)
             
