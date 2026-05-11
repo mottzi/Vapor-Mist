@@ -4,6 +4,7 @@ import Vapor
 enum Message: Codable {
     
     case ping
+    case registration(clientID: UUID)
 
     case subscribe(component: String, ssrReady: Bool)
     case action(component: String, targetID: UUID?, action: String)
@@ -42,6 +43,11 @@ extension Message {
     struct Text: SendableMessage {
         let message: String
         var wireFormat: Message { .text(message: message) }
+    }
+
+    struct Registration: SendableMessage {
+        let clientID: UUID
+        var wireFormat: Message { .registration(clientID: clientID) }
     }
 
     struct ActionResultMessage: SendableMessage {

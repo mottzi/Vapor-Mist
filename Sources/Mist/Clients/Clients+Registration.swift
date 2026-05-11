@@ -13,12 +13,18 @@ extension Clients {
     
     /// Adds a client to the registry.
     func addClient(clientID: UUID, socket: WebSocket) {
+        disconnectedAt[clientID] = nil
+        
+        if let existingIndex = clients.firstIndex(where: { $0.clientID == clientID }) {
+            clients.remove(at: existingIndex)
+        }
+        
         let client = Client(clientID: clientID, socket: socket)
         clients.append(client)
         clientsByID[clientID] = client
     }
     
-    /// Removes a client from the registry and clears its runtime state.
+    /// Removes a client from the registry.
     func removeClient(clientID: UUID) {
         
         guard let clientIndex = clients.firstIndex(where: { $0.clientID == clientID }) else { return }
@@ -31,7 +37,20 @@ extension Clients {
         
         clients.remove(at: clientIndex)
         clientsByID[clientID] = nil
-        clientToComponentState[clientID] = nil
+        
+        disconnectedAt[clientID] = Date()
+        purgeStaleStates()
+    }
+
+    /// Purges component state for clients that have been disconnected for longer than the grace period.
+    func purgeStaleStates(gracePeriod: TimeInterval = 60) {
+        let now = Date()
+        let staleIDs = disconnectedAt.filter { now.timeIntervalSince($1) > gracePeriod }.map { $0.key }
+        
+        for id in staleIDs {
+            clientToComponentState[id] = nil
+            disconnectedAt[id] = nil
+        }
     }
     
     /// Returns clients subscribed to a component.

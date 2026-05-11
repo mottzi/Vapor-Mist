@@ -12,7 +12,8 @@ public struct Socket {
         }
 
         router.webSocket(app.mist.socket.path, shouldUpgrade: app.mist.socket.shouldUpgrade) { request, socket async in
-            await Connection(over: socket, on: request.application).onUpgrade()
+            let clientID = request.query[UUID.self, at: "clientID"] ?? UUID()
+            await Connection(over: socket, on: request.application, clientID: clientID).onUpgrade()
         }
     }
 }
@@ -23,7 +24,7 @@ extension Socket.Connection {
     func onUpgrade() async {
         
         await app.mist.clients.addClient(clientID: clientID, socket: socket)
-        await app.mist.clients.send("Client (\(clientID.short)) was registered.", to: clientID)
+        await app.mist.clients.send(Message.Registration(clientID: clientID), to: clientID)
         
         socket.onText { ws, text async in
             await onText(text)
@@ -45,6 +46,9 @@ extension Socket.Connection {
         switch message {
             case .ping:
                 socket.send(#"{"pong":true}"#, promise: nil)
+                
+            case .registration:
+                break
                 
             case .subscribe(let component, let ssrReady):
                 await handleSubscription(of: component, ssrReady: ssrReady)
@@ -107,10 +111,10 @@ extension Socket {
         let clientID: UUID
 
         @discardableResult
-        init(over socket: WebSocket, on app: Application,) {
+        init(over socket: WebSocket, on app: Application, clientID: UUID) {
             self.app = app
             self.socket = socket
-            self.clientID = UUID()
+            self.clientID = clientID
         }
     }
     

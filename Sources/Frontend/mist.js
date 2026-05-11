@@ -549,7 +549,14 @@ class MistSocket {
         if (this.isConnected() || this.isConnecting()) return;
         if (this.socket) { this.socket.close(); this.socket = null; }
 
-        this.socket = new WebSocket(this.config.url);
+        let url = this.config.url;
+        const clientID = sessionStorage.getItem('mist-client-id');
+        if (clientID) {
+            const separator = url.includes('?') ? '&' : '?';
+            url += `${separator}clientID=${clientID}`;
+        }
+
+        this.socket = new WebSocket(url);
 
         this.socket.onopen = () => {
             this.clearReconnectTimer();
@@ -596,6 +603,7 @@ class MistSocket {
 
     applyServerMessage(data, rawMessage) {
         if (data.pong) return false;   // handled in onmessage; defensive guard only
+        if (data.registration) return this.applyRegistrationMessage(data.registration);
         if (data.createInstanceComponent) return this.applyInstanceCreateMessage(data.createInstanceComponent);
         if (data.updateInstanceComponent) return this.applyInstanceUpdateMessage(data.updateInstanceComponent);
         if (data.deleteInstanceComponent) return this.applyInstanceDeleteMessage(data.deleteInstanceComponent);
@@ -627,6 +635,13 @@ class MistSocket {
         }
 
         return !!result;
+    }
+
+    applyRegistrationMessage(message) {
+        const { clientID } = message;
+        sessionStorage.setItem('mist-client-id', clientID);
+        console.log(`[Client] Registered with ID: ${clientID}`);
+        return false;
     }
 
     applyInstanceUpdateMessage(message) {
@@ -733,8 +748,13 @@ class MistSocket {
 
     visibilityChange() {
         if (document.visibilityState === 'visible') {
-            console.log('[Client] Page became visible — forcing reconnect (sleep-safe)');
-            this.forceReconnect();
+            if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+                console.log('[Client] Page became visible — connection still open, resuming heartbeats');
+                this.startHeartbeat();
+            } else {
+                console.log('[Client] Page became visible — forcing reconnect (sleep-safe)');
+                this.forceReconnect();
+            }
         } else {
             // Stop heartbeat while hidden — background timers are throttled and cause false-positive pong timeouts
             this.stopHeartbeat();

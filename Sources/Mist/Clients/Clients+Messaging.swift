@@ -18,6 +18,7 @@ extension Clients {
     }
 
     func send(_ message: String, to clientID: UUID)                { send(Message.Text(message: message), to: clientID) }
+    func send(_ registration: Message.Registration, to clientID: UUID) { send(message: registration, to: clientID) }
     func send(_ message: Message.Text, to clientID: UUID)          { send(message: message, to: clientID) }
     func send(_ actionResult: Message.ActionResultMessage, to clientID: UUID) { send(message: actionResult, to: clientID) }
     func send(_ create: Message.InstanceCreate, to clientID: UUID) { send(message: create, to: clientID) }
