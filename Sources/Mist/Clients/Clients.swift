@@ -15,9 +15,6 @@ public actor Clients {
     /// Per-client state keyed by component name or instance ID.
     var clientToComponentState: [UUID: [String: ComponentState]] = [:]
     
-    /// Timestamps of client disconnections used for delayed state cleanup.
-    var disconnectedAt: [UUID: Date] = [:]
-
     /// Reference to the runtime components registry.
     let components: Components
 

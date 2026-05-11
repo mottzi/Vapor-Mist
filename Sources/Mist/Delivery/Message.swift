@@ -4,7 +4,6 @@ import Vapor
 enum Message: Codable {
     
     case ping
-    case registration(clientID: UUID)
 
     case subscribe(component: String, ssrReady: Bool)
     case action(component: String, targetID: UUID?, action: String)
@@ -43,11 +42,6 @@ extension Message {
     struct Text: SendableMessage {
         let message: String
         var wireFormat: Message { .text(message: message) }
-    }
-
-    struct Registration: SendableMessage {
-        let clientID: UUID
-        var wireFormat: Message { .registration(clientID: clientID) }
     }
 
     struct ActionResultMessage: SendableMessage {
@@ -108,17 +102,12 @@ extension Message {
     }
 
     struct StreamAppend: BroadcastableMessage, SendableMessage {
-        let component: String
-        let modelID: UUID
-        let stream: String
-        let text: String
+        let component: String, modelID: UUID, stream: String, text: String
         var wireFormat: Message { .appendStream(component: component, modelID: modelID, stream: stream, text: text) }
     }
 
     struct StreamClose: BroadcastableMessage, SendableMessage {
-        let component: String
-        let modelID: UUID
-        let stream: String
+        let component: String, modelID: UUID, stream: String
         var wireFormat: Message { .closeStream(component: component, modelID: modelID, stream: stream) }
     }
 
