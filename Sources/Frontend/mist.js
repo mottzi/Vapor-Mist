@@ -748,13 +748,8 @@ class MistSocket {
 
     visibilityChange() {
         if (document.visibilityState === 'visible') {
-            if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-                console.log('[Client] Page became visible — connection still open, resuming heartbeats');
-                this.startHeartbeat();
-            } else {
-                console.log('[Client] Page became visible — forcing reconnect (sleep-safe)');
-                this.forceReconnect();
-            }
+            console.log('[Client] Page became visible — forcing reconnect (sleep-safe)');
+            this.forceReconnect();
         } else {
             // Stop heartbeat while hidden — background timers are throttled and cause false-positive pong timeouts
             this.stopHeartbeat();
