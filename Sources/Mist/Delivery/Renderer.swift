@@ -2,11 +2,11 @@ import Vapor
 
 extension MistInterface {
 
-    var renderer: ComponentRenderer { ComponentRenderer(app: app) }
+    var renderer: Renderer { Renderer(app: app) }
 
 }
 
-struct ComponentRenderer {
+struct Renderer {
 
     let app: Application
 

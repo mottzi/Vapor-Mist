@@ -7,6 +7,32 @@ public protocol InstanceComponent: ModelComponent, Sendable {
     /// Returns the model instances used for initial rendering.
     /// Throws when the database query fails; returns an empty array when no records exist.
     func allModels(on db: Database) async throws -> [any Model]
+    
+    /// The strongly typed context representation for the component. Defaults to raw `ComponentContext`.
+    associatedtype Context: Encodable = ComponentContext
+
+    /// HTML body type returned by Elementary-backed components. Defaults to `LeafRenderPath` for Leaf-backed components.
+    associatedtype Body = LeafRenderPath
+
+    /// Maps the raw model context into the component's strongly typed context.
+    func context(from context: ComponentContext) -> Context
+
+    /// Returns the component's HTML body from current state. Implement for Elementary-backed rendering.
+    func body(context: Context) -> Body
+
+}
+
+public extension InstanceComponent where Context == ComponentContext {
+
+    /// Default: passes the raw component context directly to the body function.
+    func context(from context: ComponentContext) -> ComponentContext { context }
+
+}
+
+public extension InstanceComponent where Context == ComponentContext, Body == LeafRenderPath {
+
+    /// Leaf path: body is never called.
+    func body(context: ComponentContext) -> LeafRenderPath { fatalError("Leaf components do not use a body function") }
 
 }
 
@@ -39,3 +65,4 @@ public extension InstanceComponent {
     }
 
 }
+

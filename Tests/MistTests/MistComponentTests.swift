@@ -17,6 +17,7 @@ final class MistComponentTests: XCTestCase
     {
         // set up application and database
         let app = try await Application.make(.testing)
+        app.http.server.configuration.port = 0
         app.databases.use(.sqlite(.memory), as: .sqlite)
         
         // Configure Leaf as the view renderer
@@ -96,6 +97,7 @@ final class MistComponentTests: XCTestCase
     {
         // set up application and database
         let app = try await Application.make(.testing)
+        app.http.server.configuration.port = 0
         app.databases.use(.sqlite(.memory), as: .sqlite)
         
         // Configure Leaf as the view renderer (REQUIRED for LeafRenderer)

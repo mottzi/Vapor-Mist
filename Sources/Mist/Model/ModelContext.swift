@@ -2,7 +2,7 @@ import Foundation
 
 /// Collection of models used to build template rendering context.
 /// Computed properties are merged when the models are encoded.
-public struct ModelContext: Encodable {
+public struct ModelContext: Encodable, Sendable {
     
     /// Internal storage of models.
     private var nameToModel: [String: any Model] = [:]
@@ -33,10 +33,21 @@ public struct ModelContext: Encodable {
     
     public init() {}
     
+    /// Retrieves a strongly-typed model from the context using its Swift type name.
+    public func model<M: Model>(_ type: M.Type) -> M? {
+        let name = String(describing: type).lowercased()
+        return nameToModel[name] as? M
+    }
+    
+    /// Retrieves a model dynamically by its lowercase type name.
+    public func model(named name: String) -> (any Model)? {
+        nameToModel[name.lowercased()]
+    }
+    
 }
 
 /// Render context for one model-backed component and its per-client state.
-public struct ComponentContext: Encodable {
+public struct ComponentContext: Encodable, Sendable {
     
     public let context: ModelContext
     public let state: ComponentState
@@ -46,10 +57,32 @@ public struct ComponentContext: Encodable {
         self.state = state
     }
     
+    /// Retrieves a strongly-typed model from the underlying model context.
+    public func model<M: Model>(_ type: M.Type) -> M? {
+        context.model(type)
+    }
+    
+    /// Retrieves a strongly-typed model from the underlying model context via subscript.
+    public subscript<M: Model>(type: M.Type) -> M? {
+        context.model(type)
+    }
+    
+    /// Retrieves a property directly from a tracked model using a type-safe KeyPath.
+    public subscript<M: Model, T>(keyPath: KeyPath<M, T>) -> T? {
+        guard let model = context.model(M.self) else { return nil }
+        return model[keyPath: keyPath]
+    }
+
+    /// Retrieves an optional property directly from a tracked model, flattening the result.
+    public subscript<M: Model, T>(keyPath: KeyPath<M, T?>) -> T? {
+        guard let model = context.model(M.self) else { return nil }
+        return model[keyPath: keyPath]
+    }
+    
 }
 
 /// Render context for components that render multiple model-backed entries.
-public struct ComponentContexts: Encodable {
+public struct ComponentContexts: Encodable, Sendable {
     
     public let contexts: [ModelContext]
     

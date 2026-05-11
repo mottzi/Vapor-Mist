@@ -32,6 +32,7 @@ let package = Package(
             name: "MistTests",
             dependencies: [
                 "Mist",
+                .product(name: "Elementary", package: "elementary"),
                 .product(name: "XCTVapor", package: "vapor"),
                 .product(name: "FluentSQLiteDriver", package: "fluent-sqlite-driver"),
             ]

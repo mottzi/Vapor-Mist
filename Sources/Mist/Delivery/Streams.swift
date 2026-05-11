@@ -5,11 +5,11 @@ public actor Streams {
 
     let app: Application
     
-    private var buffers: [StreamKey: String] = [:]
-
     init(app: Application) {
         self.app = app
     }
+    
+    private var buffers: [StreamKey: String] = [:]
 
     public func replace(component: String, modelID: UUID, stream: String, text: String) async {
         

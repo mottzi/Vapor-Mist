@@ -51,9 +51,12 @@ public extension HTMLAttribute where Tag: HTMLTrait.Attributes.Global {
     static func mistId(_ value: String) -> HTMLAttribute {
         HTMLAttribute(name: "mist-id", value: value)
     }
-    
-    static func mistAction(_ value: String) -> HTMLAttribute {
-        HTMLAttribute(name: "mist-action", value: value)
+
+    static func mistId(_ uuid: UUID?) -> HTMLAttribute {
+        HTMLAttribute(name: "mist-id", value: uuid?.uuidString ?? "")
+    }
+
+    static func mistAction(_ value: String) -> HTMLAttribute {        HTMLAttribute(name: "mist-action", value: value)
     }
 
     static func mistActionsFor(_ component: String) -> HTMLAttribute {
@@ -133,3 +136,22 @@ public extension PollingComponent where Body: HTML {
     }
 
 }
+
+/// Derives an Elementary-backed template from `body(context:)` for instance components.
+public extension InstanceComponent where Body: HTML {
+
+    var template: any Template {
+        ElementaryTemplate<ComponentContext, Body> { [self] context in body(context: self.context(from: context)) }
+    }
+
+}
+
+/// Derives an Elementary-backed template from `body(context:)` for query components.
+public extension QueryComponent where Body: HTML {
+
+    var template: any Template {
+        ElementaryTemplate<ComponentContext, Body> { [self] context in body(context: self.context(from: context)) }
+    }
+
+}
+

@@ -1,5 +1,6 @@
 import XCTVapor
 import Fluent
+import Elementary
 @testable import Mist
 import XCTest
 
@@ -32,6 +33,50 @@ struct TestModelComponent: Mist.InstanceComponent {
     let models: [any Mist.Model.Type] = [DummyModel1.self]
 }
 
+struct RendererElementaryInstanceComponent: Mist.InstanceComponent {
+    let name = "RendererElementaryInstanceComponent"
+    let models: [any Mist.Model.Type] = [DummyModel1.self, DummyModel2.self]
+    let defaultState: ComponentState = ["detailsExpanded": .bool(false)]
+
+    var template: any Mist.Template {
+        ElementaryTemplate<ComponentContext, _> { [self] context in body(context: context) }
+    }
+
+    func body(context: ComponentContext) -> some HTML {
+        let primary = context.model(DummyModel1.self)!
+        let secondary = context.model(DummyModel2.self)
+        let detailsExpanded = context.state["detailsExpanded"]?.bool ?? false
+        
+        return div(.mistComponent(name), .mistId(primary.id!.uuidString)) {
+            span { primary.text }
+            if let secondary {
+                span { secondary.text2 }
+            }
+            span { detailsExpanded ? "open" : "closed" }
+        }
+    }
+}
+
+struct RendererElementaryQueryComponent: Mist.QueryComponent {
+    typealias FragmentModel = DummyModel1
+    let name = "RendererElementaryQueryComponent"
+
+    func query(on db: Database) async throws -> DummyModel1? {
+        try await DummyModel1.query(on: db).first()
+    }
+
+    var template: any Mist.Template {
+        ElementaryTemplate<ComponentContext, _> { [self] context in body(context: context) }
+    }
+
+    func body(context: ComponentContext) -> some HTML {
+        let primary = context.model(DummyModel1.self)!
+        return div(.mistComponent(name)) {
+            span { primary.text }
+        }
+    }
+}
+
 final class ComponentRendererTests: XCTestCase {
     
     var app: Application!
@@ -39,7 +84,7 @@ final class ComponentRendererTests: XCTestCase {
     override func setUp() async throws {
         app = try await Application.make(.testing)
         app.databases.use(.sqlite(.memory), as: .sqlite)
-        app.migrations.add(DummyModel1.Table())
+        app.migrations.add(DummyModel1.Table(), DummyModel2.Table())
         try await app.autoMigrate()
     }
     
@@ -68,7 +113,6 @@ final class ComponentRendererTests: XCTestCase {
         let result = await app.mist.renderer.render(component, with: ["value": "x"])
         
         if case .failed = result {
-            // expected
         } else {
             XCTFail("Expected .failed, got \(result)")
         }
@@ -94,14 +138,12 @@ final class ComponentRendererTests: XCTestCase {
         let result = await app.mist.renderer.renderModelComponent(component, modelID: UUID())
         
         if case .absent = result {
-            // expected
         } else {
             XCTFail("Expected .absent, got \(result)")
         }
     }
 
     func testRenderModelUsesComponentState() async throws {
-        // Here we just test it doesn't fail when dummy model exists
         let modelID = UUID()
         let model1 = DummyModel1(id: modelID, text: "test")
         try await model1.create(on: app.db)
@@ -114,6 +156,45 @@ final class ComponentRendererTests: XCTestCase {
         } else {
             XCTFail("Expected .rendered, got \(result)")
         }
+    }
+
+    func testElementaryInstanceComponentReceivesComponentContext() async throws {
+        let modelID = UUID()
+        let model1 = DummyModel1(id: modelID, text: "primary")
+        let model2 = DummyModel2(id: modelID, text2: "secondary")
+        try await model1.create(on: app.db)
+        try await model2.create(on: app.db)
+
+        let component = RendererElementaryInstanceComponent()
+        let result = await app.mist.renderer.renderModelComponent(
+            component,
+            modelID: modelID,
+            state: ["detailsExpanded": .bool(true)]
+        )
+
+        guard case .rendered(let html) = result else {
+            return XCTFail("Expected .rendered, got \(result)")
+        }
+
+        XCTAssertTrue(html.contains("RendererElementaryInstanceComponent"))
+        XCTAssertTrue(html.contains(modelID.uuidString))
+        XCTAssertTrue(html.contains("primary"))
+        XCTAssertTrue(html.contains("secondary"))
+        XCTAssertTrue(html.contains("open"))
+    }
+
+    func testElementaryQueryComponentReceivesComponentContext() async throws {
+        let model = DummyModel1(text: "queried")
+        try await model.create(on: app.db)
+
+        let result = await RendererElementaryQueryComponent().renderCurrent(app: app)
+
+        guard case .rendered(let html) = result else {
+            return XCTFail("Expected .rendered, got \(result)")
+        }
+
+        XCTAssertTrue(html.contains("RendererElementaryQueryComponent"))
+        XCTAssertTrue(html.contains("queried"))
     }
 
 }

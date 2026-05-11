@@ -11,6 +11,7 @@ final class MistIntegrationTests: XCTestCase
     func testSubscriptionFlow() async throws
     {
         let app = try await Application.make(.testing)
+        app.http.server.configuration.port = 0
         app.databases.use(.sqlite(.memory), as: .sqlite)
         
         // Configure Leaf as the view renderer
@@ -84,7 +85,7 @@ final class MistIntegrationTests: XCTestCase
         try await app.startup()
         
         // client connects to server socket
-        try await WebSocket.connect(to: "ws://localhost:8080/socket")
+        try await WebSocket.connect(to: "ws://localhost:\(app.http.server.shared.localAddress?.port ?? 8080)/socket")
         { ws in
             Task
             {
@@ -107,6 +108,7 @@ final class MistIntegrationTests: XCTestCase
         
         // set up application and database
         let app = try await Application.make(.testing)
+        app.http.server.configuration.port = 0
         app.databases.use(.sqlite(.memory), as: .sqlite)
         
         // Configure Leaf as the view renderer
@@ -197,7 +199,7 @@ final class MistIntegrationTests: XCTestCase
         try await app.startup()
         
         // Connect client to server
-        try await WebSocket.connect(host: "localhost", port: 8080, path: "/socket", on: app.eventLoopGroup)
+        try await WebSocket.connect(host: "localhost", port: app.http.server.shared.localAddress?.port ?? 8080, path: "/socket", on: app.eventLoopGroup)
         { ws async in
             // Send subscription message when connected
             print("*** Client sending: \(subscriptionMessage)")

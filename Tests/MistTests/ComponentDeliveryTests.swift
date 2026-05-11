@@ -10,6 +10,7 @@ final class ComponentDeliveryTests: XCTestCase {
 
     override func setUp() async throws {
         app = try await Application.make(.testing)
+        app.http.server.configuration.port = 0
         app.databases.use(.sqlite(.memory), as: .sqlite)
         app.views.use(.leaf)
         app.migrations.add(DummyModel1.Table())
@@ -56,7 +57,7 @@ final class ComponentDeliveryTests: XCTestCase {
         let ws: WebSocket = try await withCheckedThrowingContinuation { continuation in
             WebSocket.connect(
                 host: "localhost",
-                port: 8080,
+                port: app.http.server.shared.localAddress?.port ?? 8080,
                 path: "/socket",
                 on: app.eventLoopGroup
             ) { ws in

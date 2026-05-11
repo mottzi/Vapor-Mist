@@ -8,14 +8,93 @@ class MistSocket {
         this.streamBuffers = new Map();
         this.throttledUpdates = new Map();
 
-        this.timer = null;
-        this.initialDelay = 1000;
-        this.interval = 1000;
+        // Reconnect
+        this.reconnectTimer = null;
+        this.reconnectDelay = 1000;
+
+        // Heartbeat
+        this.heartbeatTimer        = null;
+        this.heartbeatInterval     = 30_000;
+        this.heartbeatTimeoutTimer = null;
+        this.heartbeatTimeout      = 10_000;
+        this.pendingHeartbeat      = false;
         this.hasConnectedOnce = false;
 
         document.addEventListener('visibilitychange', () => this.visibilityChange());
-        window.addEventListener('online', () => this.connect());
+        window.addEventListener('online', () => this.forceReconnect());
         document.addEventListener('click', (event) => this.handleAction(event));
+    }
+
+    forceReconnect() {
+        if (this.socket) {
+            // Null all handlers before close so onclose doesn't schedule a competing reconnect loop
+            this.socket.onclose   = null;
+            this.socket.onerror   = null;
+            this.socket.onopen    = null;
+            this.socket.onmessage = null;
+            this.socket.close();
+            this.socket = null;
+        }
+        this.stopHeartbeat();
+        this.clearReconnectTimer();
+        this.connect();
+    }
+
+    startHeartbeat() {
+        this.stopHeartbeat();
+        this.heartbeatTimer = setInterval(() => this.sendHeartbeat(), this.heartbeatInterval);
+    }
+
+    stopHeartbeat() {
+        clearInterval(this.heartbeatTimer);
+        clearTimeout(this.heartbeatTimeoutTimer);
+        this.heartbeatTimer        = null;
+        this.heartbeatTimeoutTimer = null;
+        this.pendingHeartbeat      = false;
+    }
+
+    sendHeartbeat() {
+        if (!this.isConnected()) return;
+
+        if (this.pendingHeartbeat) {
+            console.warn('[Client] Heartbeat timeout — connection is dead, forcing reconnect');
+            this.forceReconnect();
+            return;
+        }
+
+        this.pendingHeartbeat = true;
+        this.socket.send(JSON.stringify({ ping: {} }));
+
+        this.heartbeatTimeoutTimer = setTimeout(() => {
+            if (this.pendingHeartbeat) {
+                console.warn('[Client] Heartbeat pong not received — forcing reconnect');
+                this.forceReconnect();
+            }
+        }, this.heartbeatTimeout);
+    }
+
+    handlePong() {
+        const wasPending = this.pendingHeartbeat;
+        this.pendingHeartbeat = false;
+
+        if (this.heartbeatTimeoutTimer) {
+            clearTimeout(this.heartbeatTimeoutTimer);
+            this.heartbeatTimeoutTimer = null;
+        }
+
+        // If a pong arrives and the heartbeat interval is not running, 
+        // it means we just successfully verified the connection after a wake-up.
+        if (wasPending && !this.heartbeatTimer && this.isConnected()) {
+            console.log('[Client] Connection verified — resuming heartbeats');
+            this.startHeartbeat();
+        }
+    }
+
+    clearReconnectTimer() {
+        if (this.reconnectTimer) {
+            clearTimeout(this.reconnectTimer);
+            this.reconnectTimer = null;
+        }
     }
 
     subscribeToPageComponents() {
@@ -478,30 +557,31 @@ class MistSocket {
     isConnecting() { return this.socket?.readyState === WebSocket.CONNECTING; }
 
     connect() {
-
         if (this.isConnected() || this.isConnecting()) return;
         if (this.socket) { this.socket.close(); this.socket = null; }
 
-        // Use URL from config
         this.socket = new WebSocket(this.config.url);
 
         this.socket.onopen = () => {
-
-            if (this.timer) { clearInterval(this.timer); this.timer = null; }
-
+            this.clearReconnectTimer();
+            this.startHeartbeat();
             this.subscribeToPageComponents();
-
             this.bootBehaviors();
             this.hasConnectedOnce = true;
+            console.log('[Client] WebSocket connected');
         };
 
         this.socket.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
+
+                if (data.pong) {
+                    this.handlePong();
+                    return;
+                }
+
                 const mutatedHTML = this.applyServerMessage(data, event.data);
-
                 if (mutatedHTML === null) return;
-
                 this.afterServerMessageApplied(mutatedHTML);
             }
             catch (error) {
@@ -509,25 +589,24 @@ class MistSocket {
             }
         };
 
-        this.socket.onclose = () => {
+        this.socket.onerror = (error) => {
+            console.error('[Client] WebSocket error:', error);
+            // onclose always fires after onerror — reconnect logic lives there
+        };
 
-            if (this.timer) return
-
-            console.log("[Client] WebSocket closed: Reconnecting in 1s");
-
-            setTimeout(() => {
+        this.socket.onclose = (event) => {
+            this.stopHeartbeat();
+            this.clearReconnectTimer();
+            console.log(`[Client] WebSocket closed (code ${event.code}) — reconnecting in ${this.reconnectDelay}ms`);
+            this.reconnectTimer = setTimeout(() => {
+                this.reconnectTimer = null;
                 this.connect();
-
-                this.timer = setInterval(() => {
-                    this.connect();
-                },
-                this.interval);
-            },
-                this.initialDelay);
+            }, this.reconnectDelay);
         };
     }
 
     applyServerMessage(data, rawMessage) {
+        if (data.pong) return false;   // handled in onmessage; defensive guard only
         if (data.createInstanceComponent) return this.applyInstanceCreateMessage(data.createInstanceComponent);
         if (data.updateInstanceComponent) return this.applyInstanceUpdateMessage(data.updateInstanceComponent);
         if (data.deleteInstanceComponent) return this.applyInstanceDeleteMessage(data.deleteInstanceComponent);
@@ -664,10 +743,37 @@ class MistSocket {
     }
 
     visibilityChange() {
-        if (document.visibilityState === "visible") {
-            console.log('[Client] Document visibility changed to visible: Connecting...');
-            this.connect();
+        if (document.visibilityState === 'visible') {
+            if (this.isConnected()) {
+                this.verifyConnection();
+            } else {
+                console.log('[Client] Page became visible — socket not open, forcing reconnect');
+                this.forceReconnect();
+            }
+        } else {
+            // Stop heartbeat while hidden — background timers are throttled and cause false-positive pong timeouts
+            this.stopHeartbeat();
         }
+    }
+
+    verifyConnection() {
+        console.log('[Client] Page became visible — verifying connection...');
+
+        // Stop any existing heartbeat interval/timeout before the check
+        this.stopHeartbeat();
+
+        this.pendingHeartbeat = true;
+        this.socket.send(JSON.stringify({ ping: {} }));
+
+        // Use a short timeout for the wake-up check to detect zombie sockets quickly
+        const wakeUpTimeout = 1500;
+
+        this.heartbeatTimeoutTimer = setTimeout(() => {
+            if (this.pendingHeartbeat) {
+                console.warn('[Client] Wake-up pong not received — forcing reconnect');
+                this.forceReconnect();
+            }
+        }, wakeUpTimeout);
     }
 }
 

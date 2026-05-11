@@ -43,6 +43,9 @@ extension Socket.Connection {
         catch { app.logger.warning("\(MistError.messageDecodeFailed(text, error))"); return }
         
         switch message {
+            case .ping:
+                socket.send(#"{"pong":true}"#, promise: nil)
+                
             case .subscribe(let component, let ssrReady):
                 await handleSubscription(of: component, ssrReady: ssrReady)
             
@@ -88,7 +91,8 @@ extension Socket.Connection {
             case .failure(let message): message ?? "Failure"
         }
 
-        let message = Message.ActionResultMessage(component: component, targetID: targetID, action: action, result: result, message: resultMessage)
+        let message = Message.ActionResultMessage(component: component,
+            targetID: targetID, action: action, result: result, message: resultMessage)
         await app.mist.clients.send(message, to: clientID)
     }
 
@@ -103,17 +107,11 @@ extension Socket {
         let clientID: UUID
 
         @discardableResult
-        init(over socket: WebSocket, on app: Application,) {
+        init(over socket: WebSocket, on app: Application) {
             self.app = app
             self.socket = socket
             self.clientID = UUID()
         }
     }
-    
-}
-
-extension UUID {
-    
-    var short: String { String(uuidString.prefix(8)) }
     
 }
