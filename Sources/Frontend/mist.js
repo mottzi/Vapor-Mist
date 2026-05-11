@@ -74,9 +74,20 @@ class MistSocket {
     }
 
     handlePong() {
+        const wasPending = this.pendingHeartbeat;
         this.pendingHeartbeat = false;
-        clearTimeout(this.heartbeatTimeoutTimer);
-        this.heartbeatTimeoutTimer = null;
+
+        if (this.heartbeatTimeoutTimer) {
+            clearTimeout(this.heartbeatTimeoutTimer);
+            this.heartbeatTimeoutTimer = null;
+        }
+
+        // If a pong arrives and the heartbeat interval is not running, 
+        // it means we just successfully verified the connection after a wake-up.
+        if (wasPending && !this.heartbeatTimer && this.isConnected()) {
+            console.log('[Client] Connection verified — resuming heartbeats');
+            this.startHeartbeat();
+        }
     }
 
     clearReconnectTimer() {
@@ -761,9 +772,6 @@ class MistSocket {
             if (this.pendingHeartbeat) {
                 console.warn('[Client] Wake-up pong not received — forcing reconnect');
                 this.forceReconnect();
-            } else {
-                console.log('[Client] Connection verified — resuming heartbeats');
-                this.startHeartbeat();
             }
         }, wakeUpTimeout);
     }
