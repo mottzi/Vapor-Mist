@@ -63,7 +63,7 @@ class MistSocket {
         }
 
         this.pendingHeartbeat = true;
-        this.socket.send(JSON.stringify({ ping: true }));
+        this.socket.send(JSON.stringify({ ping: {} }));
 
         this.heartbeatTimeoutTimer = setTimeout(() => {
             if (this.pendingHeartbeat) {

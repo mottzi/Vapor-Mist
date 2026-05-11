@@ -20,6 +20,18 @@ final class MistMessageTests: XCTestCase
         XCTAssertTrue(ssrReady, "Mist message should preserve the SSR readiness flag")
     }
     
+    // tests decoding ping message to Mist.Message type
+    func testPingDecoding() async
+    {
+//        let text = #"{ "subscribe": { "component": "TestComponent2", "ssrReady": true } }"#
+        let text = #"{ "ping": {} }"#
+        
+        // try to decode json message to mist subscribe message
+        guard let data = text.data(using: .utf8) else { return XCTFail("Failed to convert JSON string to data") }
+        guard let message = try? JSONDecoder().decode(Mist.Message.self, from: data) else { return XCTFail("Failed to decode data to Mist message") }
+        guard case .ping = message else { return XCTFail("Valid but non-subscribe message") }
+    }
+    
     // tests encoding Mist.Message.subscribe to json
     func testSubscriptionEncoding() async
     {

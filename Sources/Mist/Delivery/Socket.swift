@@ -43,7 +43,7 @@ extension Socket.Connection {
         catch { app.logger.warning("\(MistError.messageDecodeFailed(text, error))"); return }
         
         switch message {
-            case .ping(_):
+            case .ping:
                 socket.send(#"{"pong":true}"#, promise: nil)
                 
             case .subscribe(let component, let ssrReady):
