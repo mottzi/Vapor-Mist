@@ -85,7 +85,7 @@ class MistSocket {
         // If a pong arrives and the heartbeat interval is not running, 
         // it means we just successfully verified the connection after a wake-up.
         if (wasPending && !this.heartbeatTimer && this.isConnected()) {
-            console.log('[Client] Connection verified — resuming heartbeats');
+            // console.log('[Client] Connection verified — resuming heartbeats');
             this.startHeartbeat();
         }
     }
@@ -99,7 +99,7 @@ class MistSocket {
 
     subscribeToPageComponents() {
 
-        console.log("[Client] Scanning DOM and subscribing to components");
+        // console.log("[Client] Scanning DOM and subscribing to components");
 
         const uniqueComponents = new Map();
 
@@ -549,7 +549,7 @@ class MistSocket {
 
             this.socket.send(JSON.stringify(message));
 
-            console.log(`[Client] Action sent to server: ${componentName}.${actionName} (${this.shortID(targetID)})`);
+            // console.log(`[Client] Action sent to server: ${componentName}.${actionName} (${this.shortID(targetID)})`);
         }
     }
 
@@ -568,7 +568,7 @@ class MistSocket {
             this.subscribeToPageComponents();
             this.bootBehaviors();
             this.hasConnectedOnce = true;
-            console.log('[Client] WebSocket connected');
+            // console.log('[Client] WebSocket connected');
         };
 
         this.socket.onmessage = (event) => {
@@ -626,7 +626,7 @@ class MistSocket {
         const { component, modelID, html } = message;
 
         if (!this.htmlBelongsToComponent(html, component)) {
-            console.log(`[Client] Dropped cross-channel broadcast for ${component}`);
+            // console.log(`[Client] Dropped cross-channel broadcast for ${component}`);
             return null;
         }
 
@@ -644,7 +644,7 @@ class MistSocket {
         const { component, modelID, html } = message;
 
         if (!this.htmlBelongsToComponent(html, component)) {
-            console.log(`[Client] Dropped cross-channel update for ${component}`);
+            // console.log(`[Client] Dropped cross-channel update for ${component}`);
             return null;
         }
 
@@ -757,7 +757,7 @@ class MistSocket {
     }
 
     verifyConnection() {
-        console.log('[Client] Page became visible — verifying connection...');
+        // console.log('[Client] Page became visible — verifying connection...');
 
         // Stop any existing heartbeat interval/timeout before the check
         this.stopHeartbeat();

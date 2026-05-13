@@ -23,7 +23,7 @@ extension Socket.Connection {
     func onUpgrade() async {
         
         await app.mist.clients.addClient(clientID: clientID, socket: socket)
-        await app.mist.clients.send("Client (\(clientID.short)) was registered.", to: clientID)
+        // await app.mist.clients.send("Client (\(clientID.short)) was registered.", to: clientID)
         
         socket.onText { ws, text async in
             await onText(text)
@@ -64,15 +64,17 @@ extension Socket.Connection {
     func handleSubscription(of component: String, ssrReady: Bool) async {
         
         let success = await app.mist.clients.addSubscription(component, to: clientID)
-        let response = success
-            ? "Client (\(clientID.short)) subscribed to component '\(component)'."
-            : "Client (\(clientID.short)) didn't subscribe to component '\(component)'."
-        await app.mist.clients.send(response, to: clientID)
-        
         guard success else { return }
+
+        // let response = success
+            // ? "Client (\(clientID.short)) subscribed to component '\(component)'."
+            // : "Client (\(clientID.short)) didn't subscribe to component '\(component)'."
+        // await app.mist.clients.send(response, to: clientID)
+        
         if !ssrReady {
             await app.mist.components.sendCurrentSubscriptionState(for: component, to: clientID)
         }
+        
         await app.mist.streams.sendSnapshots(for: component, to: clientID)
     }
 
