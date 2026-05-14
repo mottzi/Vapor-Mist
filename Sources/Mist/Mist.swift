@@ -35,6 +35,7 @@ public struct MistInterface {
         try await prepareLeafTemplates(for: components)
         await app.mist.components.registerComponents(components)
         registerSocketIfNeeded()
+        app.lifecycle.use(Clients.ShutdownHandler())
     }
 
 }
