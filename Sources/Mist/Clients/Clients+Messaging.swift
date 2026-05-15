@@ -22,6 +22,7 @@ extension Clients {
     func send(_ actionResult: Message.ActionResultMessage, to clientID: UUID) { send(message: actionResult, to: clientID) }
     func send(_ create: Message.InstanceCreate, to clientID: UUID) { send(message: create, to: clientID) }
     func send(_ update: Message.InstanceUpdate, to clientID: UUID) { send(message: update, to: clientID) }
+    func send(_ delete: Message.InstanceDelete, to clientID: UUID) { send(message: delete, to: clientID) }
     func send(_ update: Message.QueryUpdate, to clientID: UUID)    { send(message: update, to: clientID) }
     func send(_ delete: Message.QueryDelete, to clientID: UUID)    { send(message: delete, to: clientID) }
     func send(_ replace: Message.StreamReplace, to clientID: UUID) { send(message: replace, to: clientID) }

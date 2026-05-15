@@ -6,6 +6,7 @@ enum Message: Codable {
     case ping
 
     case subscribe(component: String, ssrReady: Bool)
+    case resubscribe(component: String, knownIDs: [UUID])
     case action(component: String, targetID: UUID?, action: String)
 
     case text(message: String)
@@ -72,7 +73,7 @@ extension Message {
         var wireFormat: Message { .updateInstanceComponent(component: component, modelID: modelID, html: html) }
     }
 
-    struct InstanceDelete: BroadcastableMessage {
+    struct InstanceDelete: BroadcastableMessage, SendableMessage {
         let component: String
         let modelID: UUID
         var wireFormat: Message { .deleteInstanceComponent(component: component, modelID: modelID) }

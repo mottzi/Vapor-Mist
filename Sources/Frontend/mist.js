@@ -82,7 +82,7 @@ class MistSocket {
             this.heartbeatTimeoutTimer = null;
         }
 
-        // If a pong arrives and the heartbeat interval is not running, 
+        // If a pong arrives and the heartbeat interval is not running,
         // it means we just successfully verified the connection after a wake-up.
         if (wasPending && !this.heartbeatTimer && this.isConnected()) {
             // console.log('[Client] Connection verified — resuming heartbeats');
@@ -101,13 +101,22 @@ class MistSocket {
 
         // console.log("[Client] Scanning DOM and subscribing to components");
 
+        // On reconnect we use the resubscribe handshake so the server can reconcile per-instance
+        // state (creates for missed rows, updates for stale-but-present rows, deletes for rows
+        // that disappeared while we were offline). On the very first connect, SSR has just
+        // painted the page — skip the reconciliation cost and use the original subscribe path.
+        if (this.hasConnectedOnce) {
+            this.resubscribeToPageComponents();
+            return;
+        }
+
         const uniqueComponents = new Map();
 
         // Subscribe to existing components
         document.querySelectorAll('[mist-component]').forEach(element => {
 
             const component = element.getAttribute('mist-component');
-            const ssrReady = !this.hasConnectedOnce && element.getAttribute('mist-ssr') === 'true';
+            const ssrReady = element.getAttribute('mist-ssr') === 'true';
 
             if (component) {
                 uniqueComponents.set(component, ssrReady);
@@ -118,7 +127,7 @@ class MistSocket {
         document.querySelectorAll('[mist-container]').forEach(container => {
 
             const acceptedComponents = container.getAttribute('mist-container');
-            const ssrReady = !this.hasConnectedOnce && container.getAttribute('mist-ssr') === 'true';
+            const ssrReady = container.getAttribute('mist-ssr') === 'true';
 
             if (acceptedComponents) {
                 acceptedComponents.split(',').forEach(component => {
@@ -135,6 +144,47 @@ class MistSocket {
         });
     }
 
+    // Reconnect path: report current mist-ids per component so the server can diff its current
+    // state against ours and emit the necessary create/update/delete messages.
+    resubscribeToPageComponents() {
+
+        const componentToIDs = new Map();
+
+        // Walk every [mist-component] on the page, grouped by component name.
+        // Elements marked mist-rehydrate="false" opt out of being reported as known IDs; the
+        // server will then treat them as missing and send a fresh create message.
+        document.querySelectorAll('[mist-component]').forEach(element => {
+
+            const component = element.getAttribute('mist-component');
+            if (!component) return;
+
+            if (!componentToIDs.has(component)) componentToIDs.set(component, new Set());
+
+            if (element.getAttribute('mist-rehydrate') === 'false') return;
+
+            const modelID = element.getAttribute('mist-id');
+            if (modelID) componentToIDs.get(component).add(modelID);
+        });
+
+        // Containers may accept components that aren't currently rendered. Make sure we still
+        // resubscribe to those names with an empty knownIDs so the server can populate them.
+        document.querySelectorAll('[mist-container]').forEach(container => {
+
+            const acceptedComponents = container.getAttribute('mist-container');
+            if (!acceptedComponents) return;
+
+            acceptedComponents.split(',').forEach(component => {
+                const trimmed = component.trim();
+                if (!trimmed) return;
+                if (!componentToIDs.has(trimmed)) componentToIDs.set(trimmed, new Set());
+            });
+        });
+
+        componentToIDs.forEach((ids, component) => {
+            this.resubscribe(component, Array.from(ids));
+        });
+    }
+
     subscribe(component, ssrReady = false) {
 
         if (this.isConnected()) {
@@ -143,6 +193,21 @@ class MistSocket {
                 subscribe: {
                     component: component,
                     ssrReady: ssrReady
+                }
+            };
+
+            this.socket.send(JSON.stringify(message));
+        }
+    }
+
+    resubscribe(component, knownIDs) {
+
+        if (this.isConnected()) {
+
+            const message = {
+                resubscribe: {
+                    component: component,
+                    knownIDs: knownIDs
                 }
             };
 

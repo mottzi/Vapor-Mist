@@ -72,10 +72,35 @@ extension Components {
 
     /// Sends the best current fragment state for a new subscriber, reusing polling state when possible.
     func sendCurrentSubscriptionState(for componentName: String, to clientID: UUID) async {
-        
+
         if await sendPollingStateIfAvailable(for: componentName, to: clientID) { return }
         guard let fragment = getComponent(named: componentName) as? any FragmentComponent else { return }
         await app.mist.delivery.sendCurrentFragment(fragment, to: clientID)
+    }
+
+    /// Reconciles a resubscribing client's view of a component with the server's current state.
+    ///
+    /// Dispatches on component type:
+    /// - `FragmentComponent` (including polling, live, manual, query): runs the existing
+    ///   `sendCurrentSubscriptionState` path; `knownIDs` is ignored because fragments are
+    ///   address-by-component-name only.
+    /// - `InstanceComponent` with `rehydrateOnSubscribe == true`: delegates to
+    ///   `Delivery.rehydrateInstanceComponent` which diffs `knownIDs` against `allModels(on:)`
+    ///   and sends per-instance create/update/delete messages.
+    /// - `InstanceComponent` with `rehydrateOnSubscribe == false`: no-op; the client will only
+    ///   receive future mutation broadcasts.
+    func rehydrateSubscriptionState(for componentName: String, knownIDs: [UUID], to clientID: UUID) async {
+
+        if await sendPollingStateIfAvailable(for: componentName, to: clientID) { return }
+
+        if let fragment = getComponent(named: componentName) as? any FragmentComponent {
+            await app.mist.delivery.sendCurrentFragment(fragment, to: clientID)
+            return
+        }
+
+        if let instance = getComponent(named: componentName) as? any InstanceComponent, instance.rehydrateOnSubscribe {
+            await app.mist.delivery.rehydrateInstanceComponent(instance, knownIDs: knownIDs, to: clientID)
+        }
     }
 
 }

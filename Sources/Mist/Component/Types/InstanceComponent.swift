@@ -7,7 +7,15 @@ public protocol InstanceComponent: ModelComponent, Sendable {
     /// Returns the model instances used for initial rendering.
     /// Throws when the database query fails; returns an empty array when no records exist.
     func allModels(on db: Database) async throws -> [any Model]
-    
+
+    /// Whether the runtime should reconcile this component's instances when a client resubscribes
+    /// (e.g. after a WebSocket reconnect). When `true`, the runtime renders the current `allModels(on:)`
+    /// result for the resubscribing client and emits per-instance create/update/delete messages to
+    /// bring the client's DOM in line with the server's current state. When `false`, the client only
+    /// receives future mutation broadcasts and may show stale or missing instances until then.
+    /// Default: `true`.
+    var rehydrateOnSubscribe: Bool { get }
+
     /// The strongly typed context representation for the component. Defaults to raw `ComponentContext`.
     associatedtype Context: Encodable = ComponentContext
 
@@ -37,6 +45,9 @@ public extension InstanceComponent where Context == ComponentContext, Body == Le
 }
 
 public extension InstanceComponent {
+
+    /// Default: opt in to resubscribe-time rehydration.
+    var rehydrateOnSubscribe: Bool { true }
 
     /// Default: loads all records of the first tracked model type.
     func allModels(on db: Database) async throws -> [any Model] {

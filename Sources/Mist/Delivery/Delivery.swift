@@ -111,6 +111,66 @@ struct Delivery {
         await app.mist.clients.broadcast(deleteMessage)
     }
 
+    /// Reconciles a single client's view of an `InstanceComponent` against the server's current state.
+    ///
+    /// Used during the resubscribe handshake after a WebSocket reconnect. The client reports the
+    /// `mist-id`s currently in its DOM as `knownIDs`. This method enumerates `allModels(on:)`,
+    /// computes the diff against `knownIDs`, and sends per-instance messages to that one client:
+    /// - `deleteInstanceComponent` for IDs in `knownIDs` but no longer on the server.
+    /// - `updateInstanceComponent` for IDs in both sets (re-renders with `defaultState`).
+    /// - `createInstanceComponent` for IDs on the server but missing from `knownIDs`.
+    ///
+    /// Per-client `ComponentState` is not preserved across reconnects (the `clientID` rotates),
+    /// so renders use `defaultState`.
+    func rehydrateInstanceComponent(
+        _ component: any InstanceComponent,
+        knownIDs: [UUID],
+        to clientID: UUID
+    ) async {
+
+        let knownSet = Set(knownIDs)
+
+        let models: [any Model]
+        do {
+            models = try await component.allModels(on: app.db)
+        } catch {
+            app.logger.error("\(MistError.databaseFetchFailed("\(component.name).allModels", error))")
+            return
+        }
+
+        var serverIDs: [UUID] = []
+        serverIDs.reserveCapacity(models.count)
+        for model in models {
+            guard let id = model.id else { continue }
+            serverIDs.append(id)
+        }
+        let serverSet = Set(serverIDs)
+
+        // 1. Emit deletes for IDs the client has but the server no longer has.
+        for staleID in knownSet.subtracting(serverSet) {
+            let message = Message.InstanceDelete(component: component.name, modelID: staleID)
+            await app.mist.clients.send(message, to: clientID)
+        }
+
+        // 2 & 3. Emit updates for the intersection, creates for IDs the server has but the client lacks.
+        for id in serverIDs {
+            let result = await app.mist.renderer.renderModelComponent(
+                component,
+                modelID: id,
+                state: component.defaultState
+            )
+            guard case .rendered(let html) = result else { continue }
+
+            if knownSet.contains(id) {
+                let message = Message.InstanceUpdate(component: component.name, modelID: id, html: html)
+                await app.mist.clients.send(message, to: clientID)
+            } else {
+                let message = Message.InstanceCreate(component: component.name, modelID: id, html: html)
+                await app.mist.clients.send(message, to: clientID)
+            }
+        }
+    }
+
     /// Refreshes one rendered instance after an action successfully mutates per-client state.
     func sendInstanceUpdateAfterAction(
         of component: any Component,

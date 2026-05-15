@@ -45,13 +45,16 @@ extension Socket.Connection {
         switch message {
             case .ping:
                 socket.send(#"{"pong":true}"#, promise: nil)
-                
+
             case .subscribe(let component, let ssrReady):
                 await handleSubscription(of: component, ssrReady: ssrReady)
-            
+
+            case .resubscribe(let component, let knownIDs):
+                await handleResubscription(of: component, knownIDs: knownIDs)
+
             case .action(let component, let targetID, let action):
                 await handleAction(action, of: component, on: targetID)
-            
+
             default: break
         }
     }
@@ -62,7 +65,7 @@ extension Socket.Connection {
 
     /// Registers a client's component subscription with the runtime. Sends the current fragment when needed.
     func handleSubscription(of component: String, ssrReady: Bool) async {
-        
+
         let success = await app.mist.clients.addSubscription(component, to: clientID)
         guard success else { return }
 
@@ -70,11 +73,30 @@ extension Socket.Connection {
             // ? "Client (\(clientID.short)) subscribed to component '\(component)'."
             // : "Client (\(clientID.short)) didn't subscribe to component '\(component)'."
         // await app.mist.clients.send(response, to: clientID)
-        
+
         if !ssrReady {
             await app.mist.components.sendCurrentSubscriptionState(for: component, to: clientID)
         }
-        
+
+        await app.mist.streams.sendSnapshots(for: component, to: clientID)
+    }
+
+    /// Registers a resubscribing client and reconciles its view with the server's current state.
+    ///
+    /// Used by clients on WebSocket reconnect: the client reports the `mist-id`s currently in its
+    /// DOM as `knownIDs`. The runtime dispatches on component type (fragment vs. instance) and emits
+    /// the per-instance create/update/delete messages needed to bring the client back in sync.
+    func handleResubscription(of component: String, knownIDs: [UUID]) async {
+
+        let success = await app.mist.clients.addSubscription(component, to: clientID)
+        guard success else { return }
+
+        await app.mist.components.rehydrateSubscriptionState(
+            for: component,
+            knownIDs: knownIDs,
+            to: clientID
+        )
+
         await app.mist.streams.sendSnapshots(for: component, to: clientID)
     }
 
