@@ -6,6 +6,7 @@ class MistSocket {
         this.socket = null;
         this.streamBuffers = new Map();
         this.throttledUpdates = new Map();
+        this.debouncedUpdates = new Map();
 
         this.reconnectTimer = null;
         this.reconnectDelay = 1000;
@@ -283,10 +284,32 @@ class MistSocket {
                 }
             }, delayMs)
         };
-        
+
         this.throttledUpdates.set(key, record);
-        
+
         return true;
+    }
+
+    applyDebouncedUpdate(key, delayMs, applyFn, data) {
+        const existing = this.debouncedUpdates.get(key);
+        const isNew = !existing;
+
+        if (existing) {
+            clearTimeout(existing.timer);
+        }
+
+        const record = {
+            pendingData: data,
+            timer: setTimeout(() => {
+                const r = this.debouncedUpdates.get(key);
+                this.debouncedUpdates.delete(key);
+                if (r) applyFn(r.pendingData);
+            }, delayMs)
+        };
+
+        this.debouncedUpdates.set(key, record);
+
+        return isNew;
     }
 
     streamKey(component, modelID, stream) {
@@ -486,6 +509,23 @@ class MistSocket {
         const elements = this.findComponentElements(component, modelID);
 
         if (elements.length > 0) {
+            const debounce = elements[0].getAttribute('mist-debounce');
+            if (debounce) {
+                const debounceMs = parseInt(debounce, 10);
+                if (!isNaN(debounceMs) && debounceMs > 0) {
+                    const key = `instance:${component}:${modelID}`;
+                    const isNew = this.applyDebouncedUpdate(key, debounceMs, (latestHTML) => {
+                        const currentElements = this.findComponentElements(component, modelID);
+                        if (currentElements.length > 0) {
+                            this.morphComponentElements(currentElements, latestHTML);
+                            this.reorderCollectionsForElements(currentElements);
+                            this.restoreStreams();
+                            this.bootBehaviors();
+                        }
+                    }, html);
+                    return isNew ? 'updated' : null;
+                }
+            }
             const delay = elements[0].getAttribute('mist-delay');
             if (delay) {
                 const delayMs = parseInt(delay, 10);
@@ -522,6 +562,22 @@ class MistSocket {
         const elements = this.findComponentElements(component, null);
 
         if (elements.length > 0) {
+            const debounce = elements[0].getAttribute('mist-debounce');
+            if (debounce) {
+                const debounceMs = parseInt(debounce, 10);
+                if (!isNaN(debounceMs) && debounceMs > 0) {
+                    const key = `query:${component}`;
+                    const isNew = this.applyDebouncedUpdate(key, debounceMs, (latestHTML) => {
+                        const currentElements = this.findComponentElements(component, null);
+                        if (currentElements.length > 0) {
+                            this.morphComponentElements(currentElements, latestHTML);
+                            this.restoreStreams();
+                            this.bootBehaviors();
+                        }
+                    }, html);
+                    return isNew ? 'updated' : null;
+                }
+            }
             const delay = elements[0].getAttribute('mist-delay');
             if (delay) {
                 const delayMs = parseInt(delay, 10);

@@ -107,7 +107,11 @@ public extension HTMLAttribute where Tag: HTMLTrait.Attributes.Global {
     static func mistDelay(ms: Int) -> HTMLAttribute {
         HTMLAttribute(name: "mist-delay", value: String(ms))
     }
-    
+
+    static func mistDebounce(ms: Int) -> HTMLAttribute {
+        HTMLAttribute(name: "mist-debounce", value: String(ms))
+    }
+
 }
 
 /// Derives an Elementary-backed template from `body(state:)` for live components.
