@@ -6,7 +6,7 @@ class MistSocket {
         this.socket = null;
         this.streamBuffers = new Map();
         this.throttledUpdates = new Map();
-        this.debouncedUpdates = new Map();
+        this.minDurationUpdates = new Map();
 
         this.reconnectTimer = null;
         this.reconnectDelay = 1000;
@@ -290,26 +290,40 @@ class MistSocket {
         return true;
     }
 
-    applyDebouncedUpdate(key, delayMs, applyFn, data) {
-        const existing = this.debouncedUpdates.get(key);
-        const isNew = !existing;
+    applyMinDurationUpdate(key, minMs, applyFn, data) {
+        const now = Date.now();
+        const existing = this.minDurationUpdates.get(key);
 
-        if (existing) {
-            clearTimeout(existing.timer);
+        if (!existing) {
+            applyFn(data);
+            this.minDurationUpdates.set(key, { lastAppliedAt: now, timer: null, pendingData: null });
+            return true;
         }
 
-        const record = {
-            pendingData: data,
-            timer: setTimeout(() => {
-                const r = this.debouncedUpdates.get(key);
-                this.debouncedUpdates.delete(key);
-                if (r) applyFn(r.pendingData);
-            }, delayMs)
-        };
+        const elapsed = now - existing.lastAppliedAt;
 
-        this.debouncedUpdates.set(key, record);
+        if (elapsed >= minMs && !existing.timer) {
+            applyFn(data);
+            this.minDurationUpdates.set(key, { lastAppliedAt: now, timer: null, pendingData: null });
+            return true;
+        }
 
-        return isNew;
+        if (existing.timer) {
+            existing.pendingData = data;
+            return false;
+        }
+
+        const remaining = Math.max(minMs - elapsed, 0);
+        existing.pendingData = data;
+        existing.timer = setTimeout(() => {
+            const r = this.minDurationUpdates.get(key);
+            if (!r) return;
+            const pending = r.pendingData;
+            this.minDurationUpdates.set(key, { lastAppliedAt: Date.now(), timer: null, pendingData: null });
+            if (pending !== null) applyFn(pending);
+        }, remaining);
+
+        return true;
     }
 
     streamKey(component, modelID, stream) {
@@ -509,12 +523,12 @@ class MistSocket {
         const elements = this.findComponentElements(component, modelID);
 
         if (elements.length > 0) {
-            const debounce = elements[0].getAttribute('mist-debounce');
-            if (debounce) {
-                const debounceMs = parseInt(debounce, 10);
-                if (!isNaN(debounceMs) && debounceMs > 0) {
+            const minDuration = elements[0].getAttribute('mist-min-duration');
+            if (minDuration) {
+                const minMs = parseInt(minDuration, 10);
+                if (!isNaN(minMs) && minMs > 0) {
                     const key = `instance:${component}:${modelID}`;
-                    const isNew = this.applyDebouncedUpdate(key, debounceMs, (latestHTML) => {
+                    const applied = this.applyMinDurationUpdate(key, minMs, (latestHTML) => {
                         const currentElements = this.findComponentElements(component, modelID);
                         if (currentElements.length > 0) {
                             this.morphComponentElements(currentElements, latestHTML);
@@ -523,7 +537,7 @@ class MistSocket {
                             this.bootBehaviors();
                         }
                     }, html);
-                    return isNew ? 'updated' : null;
+                    return applied ? 'updated' : null;
                 }
             }
             const delay = elements[0].getAttribute('mist-delay');
@@ -562,12 +576,12 @@ class MistSocket {
         const elements = this.findComponentElements(component, null);
 
         if (elements.length > 0) {
-            const debounce = elements[0].getAttribute('mist-debounce');
-            if (debounce) {
-                const debounceMs = parseInt(debounce, 10);
-                if (!isNaN(debounceMs) && debounceMs > 0) {
+            const minDuration = elements[0].getAttribute('mist-min-duration');
+            if (minDuration) {
+                const minMs = parseInt(minDuration, 10);
+                if (!isNaN(minMs) && minMs > 0) {
                     const key = `query:${component}`;
-                    const isNew = this.applyDebouncedUpdate(key, debounceMs, (latestHTML) => {
+                    const applied = this.applyMinDurationUpdate(key, minMs, (latestHTML) => {
                         const currentElements = this.findComponentElements(component, null);
                         if (currentElements.length > 0) {
                             this.morphComponentElements(currentElements, latestHTML);
@@ -575,7 +589,7 @@ class MistSocket {
                             this.bootBehaviors();
                         }
                     }, html);
-                    return isNew ? 'updated' : null;
+                    return applied ? 'updated' : null;
                 }
             }
             const delay = elements[0].getAttribute('mist-delay');

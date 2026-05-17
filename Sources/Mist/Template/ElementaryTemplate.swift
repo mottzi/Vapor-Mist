@@ -108,8 +108,8 @@ public extension HTMLAttribute where Tag: HTMLTrait.Attributes.Global {
         HTMLAttribute(name: "mist-delay", value: String(ms))
     }
 
-    static func mistDebounce(ms: Int) -> HTMLAttribute {
-        HTMLAttribute(name: "mist-debounce", value: String(ms))
+    static func mistMinDuration(ms: Int) -> HTMLAttribute {
+        HTMLAttribute(name: "mist-min-duration", value: String(ms))
     }
 
 }
