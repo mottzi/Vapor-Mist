@@ -321,6 +321,14 @@ extension ProfileComponent {
 }
 ```
 
+**rehydrateOnSubscribe** — controls whether the runtime reconciles a client's DOM after a WebSocket reconnect. When `true` (default), the server diffs the client's current `mist-id` values against `allModels(on:)` and sends per-instance create/update/delete messages to resync. Set to `false` to skip rehydration — the client then only receives future mutation broadcasts.
+
+```swift
+extension ProfileComponent {
+    var rehydrateOnSubscribe: Bool { false }
+}
+```
+
 **Component template** — `Resources/Views/TeamProfileExample/ProfileComponent.leaf`
 
 ```html
@@ -624,6 +632,8 @@ These appear in the Leaf template just like regular fields: `#(context.deploymen
 | `mist-id="uuid"` | Instance identity for `InstanceComponent` |
 | `mist-ssr="true"` | Marks a component as SSR-ready to optimize initial connection |
 | `mist-delay="ms"` | Throttles component updates by the specified millisecond delay |
+| `mist-min-duration="ms"` | Enforces a minimum display duration — incoming updates are coalesced and applied only after the window expires |
+| `mist-rehydrate="false"` | Excludes an instance element from the resubscribe `knownIDs` report (e.g. optimistic placeholders) |
 | `mist-container="Name"` | Accepts dynamically inserted/removed component instances |
 | `mist-insert-position` | Where new instances are inserted — any `insertAdjacentHTML` position, default `beforeend` |
 | `mist-action="actionName"` | Triggers a server action on click |
@@ -654,6 +664,7 @@ app.mist.socket.shouldUpgrade = { request async -> HTTPHeaders? in
     return HTTPHeaders()
 }
 ```
+
 
 </details>
 
