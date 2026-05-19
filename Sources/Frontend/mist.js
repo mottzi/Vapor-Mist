@@ -923,4 +923,3 @@ document.addEventListener('DOMContentLoaded', function () {
     window.ws.bootBehaviors();
     window.ws.connect();
 });
-
