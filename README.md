@@ -394,6 +394,8 @@ struct TeamDirectoryPageContext: Encodable {
 }
 ```
 
+</details>
+
 <details>
 <summary><strong>QueryComponent</strong></summary>
 
