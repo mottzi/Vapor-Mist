@@ -19,6 +19,7 @@ final class ComponentDeliveryTests: XCTestCase {
         
         try await app.mist.use {
             DeliveryTestRow()
+            DeliveryTestQuery()
         }
     }
 
@@ -170,6 +171,66 @@ final class ComponentDeliveryTests: XCTestCase {
             }
         })
     }
+
+    func testModelSyncSendsInstanceCreateForExistingModel() async throws {
+        let modelID = UUID()
+        let model1 = DummyModel1(id: modelID, text: "synced1")
+        let model2 = DummyModel2(id: modelID, text2: "synced2")
+        try await model1.save(on: app.db)
+        try await model2.save(on: app.db)
+
+        try await withClientConnection(component: "DeliveryTestRow", setup: { app, clientID in
+            await app.mist.models.sync(DummyModel1.self, id: modelID)
+        }, test: { ws, state in
+            ws.onText { ws, text async in
+                if text.contains("createInstanceComponent") && text.contains("DeliveryTestRow") &&
+                   (text.contains(modelID.uuidString.uppercased()) || text.contains(modelID.uuidString.lowercased())) {
+                    await state.finish()
+                } else {
+                    await state.fail("Unexpected message: \\(text)")
+                }
+            }
+        })
+    }
+
+    func testModelSyncDeletesMissingModel() async throws {
+        let modelID = UUID()
+
+        try await withClientConnection(component: "DeliveryTestRow", setup: { app, clientID in
+            await app.mist.clients.setState(["test": .bool(true)], for: clientID, componentID: modelID.uuidString)
+            await app.mist.models.sync(DummyModel1.self, id: modelID)
+
+            let stateAfter = await app.mist.clients.getState(for: clientID, componentID: modelID.uuidString, default: [:])
+            XCTAssertNil(stateAfter["test"], "State should be cleared when sync discovers a missing model")
+        }, test: { ws, state in
+            ws.onText { ws, text async in
+                if text.contains("deleteInstanceComponent") && text.contains("DeliveryTestRow") &&
+                   (text.contains(modelID.uuidString.uppercased()) || text.contains(modelID.uuidString.lowercased())) {
+                    await state.finish()
+                } else {
+                    await state.fail("Unexpected message: \\(text)")
+                }
+            }
+        })
+    }
+
+    func testModelSyncRefreshesObservedQueryComponent() async throws {
+        let modelID = UUID()
+        let model1 = DummyModel1(id: modelID, text: "query1")
+        try await model1.save(on: app.db)
+
+        try await withClientConnection(component: "DeliveryTestQuery", setup: { app, clientID in
+            await app.mist.models.sync(DummyModel1.self, id: modelID)
+        }, test: { ws, state in
+            ws.onText { ws, text async in
+                if text.contains("updateQueryComponent") && text.contains("DeliveryTestQuery") {
+                    await state.finish()
+                } else {
+                    await state.fail("Unexpected message: \\(text)")
+                }
+            }
+        })
+    }
     
     func testDeliverInstanceDeletionSendsInstanceDeleteAndClearsState() async throws {
         let modelID = UUID()
@@ -209,4 +270,13 @@ struct DeliveryTestRow: Mist.InstanceComponent {
     let name = "DeliveryTestRow"
     let models: [any Mist.Model.Type] = [DummyModel1.self, DummyModel2.self]
     let template: Mist.Template = StaticTemplate(html: "<div>test instance</div>")
+}
+
+struct DeliveryTestQuery: Mist.QueryComponent {
+    let name = "DeliveryTestQuery"
+    let template: Mist.Template = StaticTemplate(html: "<div>test query</div>")
+
+    func query(on db: Database) async throws -> DummyModel1? {
+        try await DummyModel1.query(on: db).first()
+    }
 }
