@@ -19,25 +19,35 @@ extension Clients {
     }
     
     /// Removes a client from the registry and clears its runtime state.
-    func removeClient(clientID: UUID) {
+    func removeClient(clientID: UUID) -> [(component: String, subscriberCount: Int)] {
         
-        guard let clientIndex = clients.firstIndex(where: { $0.clientID == clientID }) else { return }
+        guard let clientIndex = clients.firstIndex(where: { $0.clientID == clientID }) else { return [] }
         
+        var changedComponents: [(component: String, subscriberCount: Int)] = []
+
         for component in clients[clientIndex].subscriptions {
             guard var subscribers = componentToClients[component] else { continue }
             subscribers.remove(clientID)
             componentToClients[component] = subscribers.isEmpty ? nil : subscribers
+            changedComponents.append((component, subscribers.count))
         }
         
         clients.remove(at: clientIndex)
         clientsByID[clientID] = nil
         clientToComponentState[clientID] = nil
+
+        return changedComponents
     }
     
     /// Returns clients subscribed to a component.
     func getSubscribers(of component: String) -> [Client] {
         guard let subscriberIDs = componentToClients[component] else { return [] }
         return subscriberIDs.compactMap { clientsByID[$0] }
+    }
+
+    /// Returns the current subscriber count for a component.
+    func subscriberCount(of component: String) -> Int {
+        componentToClients[component]?.count ?? 0
     }
 
 }
