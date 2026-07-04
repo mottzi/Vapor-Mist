@@ -765,6 +765,7 @@ class MistSocket {
             this.subscribeToPageComponents();
             this.bootBehaviors();
             this.hasConnectedOnce = true;
+            document.dispatchEvent(new CustomEvent('mist:open'));
         };
 
         this.socket.onmessage = (event) => {
@@ -789,6 +790,7 @@ class MistSocket {
             this.stopHeartbeat();
             this.clearReconnectTimer();
             console.log(`[Client] WebSocket closed. Reconnecting.`);
+            document.dispatchEvent(new CustomEvent('mist:close'));
             this.reconnectTimer = setTimeout(() => {
                 this.reconnectTimer = null;
                 this.connect();
