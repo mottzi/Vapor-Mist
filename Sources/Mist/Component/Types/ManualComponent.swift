@@ -15,12 +15,28 @@ public protocol ManualComponent: FragmentComponent {
     /// Returns the component's HTML body from current state. Implement for Elementary-backed rendering.
     func body(state: FragmentState) -> Body
 
+    /// Returns the component's HTML body from current state and per-client component state.
+    func body(state: FragmentState, componentState: ComponentState) -> Body
+
+}
+
+/// A manual fragment that renders differently for each client's `ComponentState`.
+public protocol ClientStateManualComponent: ManualComponent {
+
+    /// Renders the current manual fragment using per-client component state.
+    func renderClientState(app: Application, state: ComponentState) async -> RenderResult
+
 }
 
 public extension ManualComponent {
 
     /// Default: manual fragments use no per-client state.
     var defaultState: ComponentState { [:] }
+
+    /// Default: manual fragments ignore per-client component state.
+    func body(state: FragmentState, componentState: ComponentState) -> Body {
+        body(state: state)
+    }
 
 }
 

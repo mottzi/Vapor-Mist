@@ -62,6 +62,22 @@ public extension QueryComponent {
         
         return await render(with: modelID, state: [:], on: app)
     }
+
+    /// Renders the current query result using per-client component state.
+    func renderCurrent(app: Application, state: ComponentState) async -> RenderResult {
+        let model: FragmentModel?
+        do {
+            model = try await query(on: app.db)
+        } catch {
+            app.logger.error("\(MistError.databaseFetchFailed("\(Self.self) current query", error))")
+            return .failed
+        }
+
+        guard let model,
+              let modelID = model.id
+        else { return .absent }
+
+        return await render(with: modelID, state: state, on: app)
+    }
     
 }
-

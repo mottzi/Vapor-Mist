@@ -681,10 +681,14 @@ class MistSocket {
                 }
             }
             this.morphComponentElements(elements, html);
+            this.restoreStreams();
+            this.bootBehaviors();
             return 'updated';
         }
 
         if (this.insertIntoAcceptedContainer(component, html)) {
+            this.restoreStreams();
+            this.bootBehaviors();
             return 'created';
         }
 

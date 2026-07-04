@@ -2,6 +2,7 @@ import XCTest
 import Vapor
 import WebSocketKit
 import FluentSQLiteDriver
+import Elementary
 @testable import Mist
 
 final class ComponentDeliveryTests: XCTestCase {
@@ -257,6 +258,35 @@ final class ComponentDeliveryTests: XCTestCase {
         })
     }
 
+    func testFragmentActionSendsUpdatedStateToInitiatingClient() async throws {
+        let component = DeliveryToggleFragment()
+        await app.mist.components.registerComponents([component])
+
+        try await withClientConnection(component: component.name, setup: { app, clientID in
+            let result = await app.mist.components.performAction(
+                "toggle",
+                of: component.name,
+                on: nil,
+                for: clientID
+            )
+
+            guard case .success = result else {
+                XCTFail("Expected toggle action to succeed")
+                return
+            }
+        }, test: { ws, state in
+            ws.onText { ws, text async in
+                if text.contains("updateQueryComponent") &&
+                   text.contains("DeliveryToggleFragment") &&
+                   text.contains("enabled") {
+                    await state.finish()
+                } else {
+                    await state.fail("Unexpected message: \\(text)")
+                }
+            }
+        })
+    }
+
 }
 
 struct StaticTemplate: Mist.Template {
@@ -278,5 +308,39 @@ struct DeliveryTestQuery: Mist.QueryComponent {
 
     func query(on db: Database) async throws -> DummyModel1? {
         try await DummyModel1.query(on: db).first()
+    }
+}
+
+struct DeliveryToggleFragment: Mist.ClientStateManualComponent {
+    let name = "DeliveryToggleFragment"
+    let state = LiveState(of: true)
+    let defaultState: ComponentState = ["enabled": .bool(false)]
+    let actions: [any Mist.Action] = [DeliveryToggleAction()]
+
+    func body(state: Bool) -> some HTML {
+        body(state: state, clientState: defaultState)
+    }
+
+    func body(state: Bool, clientState: ComponentState) -> some HTML {
+        let enabled = clientState["enabled"]?.bool ?? false
+
+        return div(.mistComponent(name)) {
+            span { enabled ? "enabled" : "disabled" }
+        }
+    }
+
+    func renderClientState(app: Application, state componentState: ComponentState) async -> RenderResult {
+        let current = await state.current
+        return .rendered(body(state: current, clientState: componentState).render())
+    }
+}
+
+struct DeliveryToggleAction: Mist.Action {
+    let name = "toggle"
+
+    func perform(targetID: UUID?, state: inout Mist.ComponentState, app: Application) async -> Mist.ActionResult {
+        let enabled = state["enabled"]?.bool ?? false
+        state["enabled"] = .bool(!enabled)
+        return .success()
     }
 }

@@ -19,12 +19,20 @@ public protocol PollingComponent: FragmentComponent {
     /// Returns the component's HTML body from polling context. Implement for Elementary-backed rendering.
     func body(context: FragmentContext) -> Body
 
+    /// Returns the component's HTML body from polling context and per-client component state.
+    func body(context: FragmentContext, componentState: ComponentState) -> Body
+
 }
 
 public extension PollingComponent {
 
     /// Default: poll every three seconds.
     var refreshInterval: Duration { .seconds(3) }
+
+    /// Default: polling fragments ignore per-client component state.
+    func body(context: FragmentContext, componentState: ComponentState) -> Body {
+        body(context: context)
+    }
 
 }
 

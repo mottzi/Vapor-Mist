@@ -121,6 +121,11 @@ public extension LiveComponent where Body: HTML {
         ElementaryTemplate<FragmentState, Body> { [self] state in body(state: state) }
     }
 
+    func renderCurrent(app: Application, state componentState: ComponentState) async -> RenderResult {
+        let current = await state.current
+        return .rendered(body(state: current, componentState: componentState).render())
+    }
+
 }
 
 /// Derives an Elementary-backed template from `body(state:)` for manual components.
@@ -137,6 +142,11 @@ public extension PollingComponent where Body: HTML {
 
     var template: any Template {
         ElementaryTemplate<FragmentContext, Body> { [self] context in body(context: context) }
+    }
+
+    func renderCurrent(app: Application, state componentState: ComponentState) async -> RenderResult {
+        guard let context = await poll(on: app.db) else { return .absent }
+        return .rendered(body(context: context, componentState: componentState).render())
     }
 
 }
@@ -158,4 +168,3 @@ public extension QueryComponent where Body: HTML {
     }
 
 }
-

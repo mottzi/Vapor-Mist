@@ -49,4 +49,12 @@ struct Renderer {
         return await component.renderCurrent(app: app)
     }
 
+    func renderCurrentFragment(_ component: any FragmentComponent, state: ComponentState) async -> RenderResult {
+        if let component = component as? any ClientStateManualComponent {
+            return await component.renderClientState(app: app, state: state)
+        }
+
+        return await component.renderCurrent(app: app, state: state)
+    }
+
 }
