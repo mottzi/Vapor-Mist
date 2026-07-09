@@ -50,8 +50,8 @@ struct Renderer {
     }
 
     func renderCurrentFragment(_ component: any FragmentComponent, state: ComponentState) async -> RenderResult {
-        if let component = component as? any ClientStateManualComponent {
-            return await component.renderClientState(app: app, state: state)
+        if let component = component as? any ManualComponent {
+            return await component.renderCurrentManualFragment(app: app, state: state)
         }
 
         return await component.renderCurrent(app: app, state: state)

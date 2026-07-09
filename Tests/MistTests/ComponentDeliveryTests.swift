@@ -311,27 +311,22 @@ struct DeliveryTestQuery: Mist.QueryComponent {
     }
 }
 
-struct DeliveryToggleFragment: Mist.ClientStateManualComponent {
+struct DeliveryToggleFragment: Mist.ManualComponent {
     let name = "DeliveryToggleFragment"
     let state = LiveState(of: true)
     let defaultState: ComponentState = ["enabled": .bool(false)]
     let actions: [any Mist.Action] = [DeliveryToggleAction()]
 
     func body(state: Bool) -> some HTML {
-        body(state: state, clientState: defaultState)
+        body(state: state, componentState: defaultState)
     }
 
-    func body(state: Bool, clientState: ComponentState) -> some HTML {
-        let enabled = clientState["enabled"]?.bool ?? false
+    func body(state: Bool, componentState: ComponentState) -> some HTML {
+        let enabled = componentState["enabled"]?.bool ?? false
 
         return div(.mistComponent(name)) {
             span { enabled ? "enabled" : "disabled" }
         }
-    }
-
-    func renderClientState(app: Application, state componentState: ComponentState) async -> RenderResult {
-        let current = await state.current
-        return .rendered(body(state: current, clientState: componentState).render())
     }
 }
 

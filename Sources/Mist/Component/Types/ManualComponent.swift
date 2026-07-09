@@ -9,6 +9,9 @@ public protocol ManualComponent: FragmentComponent {
     /// HTML body type returned by Elementary-backed components. Defaults to `LeafRenderPath` for Leaf-backed components.
     associatedtype Body = LeafRenderPath
 
+    /// HTML body type returned when rendering with per-client component state. Defaults to `Body`.
+    associatedtype ComponentStateBody = Body
+
     /// Shared state rendered and synchronized for this fragment.
     var state: LiveState<FragmentState> { get }
 
@@ -16,15 +19,10 @@ public protocol ManualComponent: FragmentComponent {
     func body(state: FragmentState) -> Body
 
     /// Returns the component's HTML body from current state and per-client component state.
-    func body(state: FragmentState, componentState: ComponentState) -> Body
+    func body(state: FragmentState, componentState: ComponentState) -> ComponentStateBody
 
-}
-
-/// A manual fragment that renders differently for each client's `ComponentState`.
-public protocol ClientStateManualComponent: ManualComponent {
-
-    /// Renders the current manual fragment using per-client component state.
-    func renderClientState(app: Application, state: ComponentState) async -> RenderResult
+    /// Renders the fragment using per-client component state.
+    func renderCurrent(app: Application, state: ComponentState) async -> RenderResult
 
 }
 
@@ -32,6 +30,10 @@ public extension ManualComponent {
 
     /// Default: manual fragments use no per-client state.
     var defaultState: ComponentState { [:] }
+
+}
+
+public extension ManualComponent where ComponentStateBody == Body {
 
     /// Default: manual fragments ignore per-client component state.
     func body(state: FragmentState, componentState: ComponentState) -> Body {
@@ -53,6 +55,11 @@ public extension ManualComponent {
     func renderCurrent(app: Application) async -> RenderResult {
         let current = await state.current
         return await render(with: current, on: app)
+    }
+
+    /// Renders the fragment from the current state and per-client component state.
+    func renderCurrent(app: Application, state componentState: ComponentState) async -> RenderResult {
+        await renderCurrentManualFragment(app: app, state: componentState)
     }
 
 }

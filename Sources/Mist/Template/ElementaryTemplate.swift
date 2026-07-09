@@ -137,6 +137,23 @@ public extension ManualComponent where Body: HTML {
 
 }
 
+extension ManualComponent {
+
+    func renderCurrentManualFragment(app: Application, state componentState: ComponentState) async -> RenderResult {
+        guard ComponentStateBody.self != LeafRenderPath.self else { return await renderCurrent(app: app) }
+
+        let current = await state.current
+        let content = body(state: current, componentState: componentState)
+
+        guard let html = content as? any HTML else {
+            return await render(with: current, on: app)
+        }
+
+        return .rendered(html.render())
+    }
+
+}
+
 /// Derives an Elementary-backed template from `body(context:)` for polling components.
 public extension PollingComponent where Body: HTML {
 

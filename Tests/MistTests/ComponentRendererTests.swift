@@ -77,27 +77,22 @@ struct RendererElementaryQueryComponent: Mist.QueryComponent {
     }
 }
 
-struct RendererElementaryManualComponent: Mist.ClientStateManualComponent {
+struct RendererElementaryManualComponent: Mist.ManualComponent {
     let name = "RendererElementaryManualComponent"
     let state = LiveState(of: true)
     let defaultState: ComponentState = ["expanded": .bool(false)]
 
     func body(state: Bool) -> some HTML {
-        body(state: state, clientState: defaultState)
+        body(state: state, componentState: defaultState)
     }
 
-    func body(state: Bool, clientState: ComponentState) -> some HTML {
-        let expanded = clientState["expanded"]?.bool ?? false
+    func body(state: Bool, componentState: ComponentState) -> some HTML {
+        let expanded = componentState["expanded"]?.bool ?? false
 
         return div(.mistComponent(name)) {
             span { state ? "ready" : "idle" }
             span { expanded ? "expanded" : "collapsed" }
         }
-    }
-
-    func renderClientState(app: Application, state componentState: ComponentState) async -> RenderResult {
-        let current = await state.current
-        return .rendered(body(state: current, clientState: componentState).render())
     }
 }
 
@@ -233,7 +228,16 @@ final class ComponentRendererTests: XCTestCase {
 
         XCTAssertTrue(html.contains("RendererElementaryManualComponent"))
         XCTAssertTrue(html.contains("ready"))
-        XCTAssertTrue(html.contains("expanded"))
+        XCTAssertTrue(html.contains("expanded"), html)
+
+        let directComponent: any Mist.ManualComponent = RendererElementaryManualComponent()
+        let directResult = await directComponent.renderCurrent(app: app, state: ["expanded": .bool(true)])
+
+        guard case .rendered(let directHTML) = directResult else {
+            return XCTFail("Expected .rendered, got \(directResult)")
+        }
+
+        XCTAssertTrue(directHTML.contains("expanded"), directHTML)
     }
 
 }
