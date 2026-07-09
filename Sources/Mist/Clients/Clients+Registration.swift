@@ -18,6 +18,7 @@ extension Clients {
         clientsByID[clientID] = client
     }
     
+    @discardableResult
     /// Removes a client from the registry and clears its runtime state.
     func removeClient(clientID: UUID) -> [(component: String, subscriberCount: Int)] {
         

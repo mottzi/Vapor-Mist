@@ -543,9 +543,9 @@ The client receives an `actionResult` message regardless. On `.success`, Mist au
 <details>
 <summary><strong>Streams</strong></summary>
 
-Append-only text streams scoped to a component instance. Useful for streaming build output, logs, or LLM token responses. The buffer is snapshotted and replayed to new subscribers automatically.
+Append-only text streams scoped to a component instance or globally. Useful for streaming build output, logs, or LLM token responses. The buffer is snapshotted and replayed to new subscribers automatically.
 
-**Server:**
+**Server (Instance Streams):**
 
 ```swift
 // Replace the full stream content
@@ -558,13 +558,29 @@ await app.mist.streams.append(component: "RowComponent-myapp", modelID: id, stre
 await app.mist.streams.close(component: "RowComponent-myapp", modelID: id, stream: "build-output")
 ```
 
+**Server (Static Streams):**
+
+Register static streams for component-level broadcasts without a model ID. You can set buffer limits and attach lifecycle hooks that fire when the first subscriber joins or the last subscriber leaves.
+
+```swift
+let logStream = await app.mist.streams.staticStream(
+    component: "SystemLogsComponent",
+    stream: "system-logs",
+    retainingLines: 500, // Server-side memory limit
+    onActive: { await logTailer.start() },
+    onInactive: { await logTailer.stop() }
+)
+
+await app.mist.streams.append(logStream, text: newLogLine)
+```
+
 **Template:**
 
 ```html
-<pre mist-stream="build-output"></pre>
+<pre mist-stream="build-output" data-mist-stream-limit="200"></pre>
 ```
 
-The `[mist-stream]` element receives text directly. `append` appends a text node; `replace` sets `textContent`. The element auto-scrolls to the bottom on each update.
+The `[mist-stream]` element receives text directly. `append` appends a text node; `replace` sets `textContent`. The element auto-scrolls to the bottom on each update, unless the user has manually scrolled up to read historical logs. Add `data-mist-stream-limit` to automatically prune old lines and prevent browser memory leaks.
 
 </details>
 
@@ -623,6 +639,39 @@ These appear in the Leaf template just like regular fields: `#(context.deploymen
 
 </details>
 
+<br>
+
+<details>
+<summary><strong>External Model Synchronization</strong></summary>
+
+Keep your UI in sync with database mutations that occur outside of Mist actions (e.g., in background jobs, cron tasks, or CLI commands).
+
+```swift
+// Synchronizes an updated or newly created record
+await app.mist.models.sync(Deployment.self, id: deploymentID)
+
+// Synchronizes a deleted record
+await app.mist.models.delete(Deployment.self, id: deploymentID)
+```
+
+Mist will fetch the updated model, identify connected client instances, and push the DOM mutations (upserts/deletions) to all subscribers instantly. It also refreshes query components observing the modified model type.
+
+</details>
+
+<br>
+
+<details>
+<summary><strong>Client Events</strong></summary>
+
+`mist.js` dispatches events to the `document` during WebSocket state transitions, allowing you to show offline banners or loading states.
+
+```javascript
+document.addEventListener('mist:open', () => console.log('Connected!'));
+document.addEventListener('mist:close', () => console.log('Disconnected. Reconnecting...'));
+```
+
+</details>
+
 <details>
 <summary><strong>Client Attributes</strong></summary>
 
@@ -639,6 +688,7 @@ These appear in the Leaf template just like regular fields: `#(context.deploymen
 | `mist-action="actionName"` | Triggers a server action on click |
 | `mist-actions-for="Name"` | Routes a click action to a named component elsewhere in the DOM |
 | `mist-stream="streamName"` | Receives append-only text from the server |
+| `data-mist-stream-limit="count"` | Restricts the maximum number of lines kept in a stream element |
 | `mist-behavior="timer"` | Client-side elapsed timer, requires `data-started-at-unix-ms` |
 | `mist-behavior="local-datetime"` | Formats a Unix ms timestamp to local time, requires `data-started-at-unix-ms` |
 | `mist-behavior="sortable-collection"` | Auto-sorts children by `data-mist-sort-value` on mutation |
