@@ -332,13 +332,15 @@ class MistSocket {
 
     rememberStream(component, modelID, stream, text) {
         const key = this.streamKey(component, modelID, stream);
-        this.streamBuffers.set(key, { component, modelID, stream, text });
+        const limitedText = this.limitStreamText(component, modelID, stream, text);
+        this.streamBuffers.set(key, { component, modelID, stream, text: limitedText });
         return key;
     }
 
     replaceStream(component, modelID, stream, text) {
-        this.rememberStream(component, modelID, stream, text);
-        this.setStreamText(component, modelID, stream, text);
+        const key = this.rememberStream(component, modelID, stream, text);
+        const record = this.streamBuffers.get(key);
+        this.setStreamText(component, modelID, stream, record?.text || '');
     }
 
     appendStream(component, modelID, stream, text) {
@@ -347,12 +349,15 @@ class MistSocket {
 
         const key = this.streamKey(component, modelID, stream);
         const existing = this.streamBuffers.get(key);
-        const nextText = (existing?.text || '') + text;
+        const nextText = this.limitStreamText(component, modelID, stream, (existing?.text || '') + text);
         this.streamBuffers.set(key, { component, modelID, stream, text: nextText });
 
         this.findStreamTargets(component, modelID, stream).forEach(target => {
+            const shouldScroll = this.shouldAutoScrollStreamTarget(target);
             target.appendChild(document.createTextNode(text));
-            this.scrollStreamTargetToBottom(target);
+            this.pruneStreamTarget(target);
+            this.rememberStreamFromTarget(target);
+            if (shouldScroll) this.scrollStreamTargetToBottom(target);
         });
     }
 
@@ -368,8 +373,11 @@ class MistSocket {
 
     setStreamText(component, modelID, stream, text) {
         this.findStreamTargets(component, modelID, stream).forEach(target => {
+            const shouldScroll = this.shouldAutoScrollStreamTarget(target);
             target.textContent = text;
-            this.scrollStreamTargetToBottom(target);
+            this.pruneStreamTarget(target);
+            this.rememberStreamFromTarget(target);
+            if (shouldScroll) this.scrollStreamTargetToBottom(target);
         });
     }
 
@@ -382,6 +390,70 @@ class MistSocket {
         if (!(target instanceof HTMLElement)) return;
         if (target.offsetParent === null && target.getClientRects().length === 0) return;
         target.scrollTop = target.scrollHeight;
+    }
+
+    shouldAutoScrollStreamTarget(target) {
+        if (!(target instanceof HTMLElement)) return false;
+        if (target.offsetParent === null && target.getClientRects().length === 0) return false;
+        const distanceFromBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
+        return distanceFromBottom <= 24;
+    }
+
+    streamLimitForTarget(target) {
+        if (!(target instanceof Element)) return null;
+        const rawLimit = target.getAttribute('data-mist-stream-limit');
+        if (!rawLimit) return null;
+        const limit = Number.parseInt(rawLimit, 10);
+        return Number.isNaN(limit) || limit <= 0 ? null : limit;
+    }
+
+    limitStreamText(component, modelID, stream, text) {
+        const limits = this.findStreamTargets(component, modelID, stream)
+            .map(target => this.streamLimitForTarget(target))
+            .filter(limit => limit !== null);
+
+        if (limits.length === 0) return text;
+        return this.pruneTextToLineLimit(text, Math.min(...limits));
+    }
+
+    pruneStreamTarget(target) {
+        const limit = this.streamLimitForTarget(target);
+        if (limit === null) return;
+        const pruned = this.pruneTextToLineLimit(target.textContent || '', limit);
+        if (pruned !== target.textContent) target.textContent = pruned;
+    }
+
+    pruneTextToLineLimit(text, limit) {
+        const pieces = text.split('\n');
+        const maximumPieceCount = text.endsWith('\n') ? limit + 1 : limit;
+        if (pieces.length <= maximumPieceCount) return text;
+        return pieces.slice(pieces.length - maximumPieceCount).join('\n');
+    }
+
+    rememberStreamFromTarget(target) {
+        if (!(target instanceof Element)) return;
+        const stream = target.getAttribute('mist-stream');
+        if (!stream) return;
+
+        const componentElement = target.closest('[mist-component]');
+        if (!componentElement) return;
+
+        const component = componentElement.getAttribute('mist-component');
+        const modelID = componentElement.getAttribute('mist-id');
+        if (!component) return;
+
+        this.streamBuffers.set(this.streamKey(component, modelID, stream), {
+            component,
+            modelID,
+            stream,
+            text: target.textContent || ''
+        });
+    }
+
+    clearStreamTarget(target) {
+        if (!(target instanceof Element)) return;
+        target.textContent = '';
+        this.rememberStreamFromTarget(target);
     }
 
     parseSortValue(rawValue, sortType) {
@@ -609,10 +681,14 @@ class MistSocket {
                 }
             }
             this.morphComponentElements(elements, html);
+            this.restoreStreams();
+            this.bootBehaviors();
             return 'updated';
         }
 
         if (this.insertIntoAcceptedContainer(component, html)) {
+            this.restoreStreams();
+            this.bootBehaviors();
             return 'created';
         }
 
@@ -689,6 +765,7 @@ class MistSocket {
             this.subscribeToPageComponents();
             this.bootBehaviors();
             this.hasConnectedOnce = true;
+            document.dispatchEvent(new CustomEvent('mist:open'));
         };
 
         this.socket.onmessage = (event) => {
@@ -713,6 +790,7 @@ class MistSocket {
             this.stopHeartbeat();
             this.clearReconnectTimer();
             console.log(`[Client] WebSocket closed. Reconnecting.`);
+            document.dispatchEvent(new CustomEvent('mist:close'));
             this.reconnectTimer = setTimeout(() => {
                 this.reconnectTimer = null;
                 this.connect();
@@ -888,6 +966,11 @@ class MistSocket {
     verifyConnection() {
 
         this.stopHeartbeat();
+
+        if (!this.isConnected()) {
+            this.forceReconnect();
+            return;
+        }
 
         this.pendingHeartbeat = true;
         this.socket.send(JSON.stringify({ ping: {} }));

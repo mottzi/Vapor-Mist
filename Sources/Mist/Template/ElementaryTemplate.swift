@@ -121,6 +121,11 @@ public extension LiveComponent where Body: HTML {
         ElementaryTemplate<FragmentState, Body> { [self] state in body(state: state) }
     }
 
+    func renderCurrent(app: Application, state componentState: ComponentState) async -> RenderResult {
+        let current = await state.current
+        return .rendered(body(state: current, componentState: componentState).render())
+    }
+
 }
 
 /// Derives an Elementary-backed template from `body(state:)` for manual components.
@@ -132,11 +137,33 @@ public extension ManualComponent where Body: HTML {
 
 }
 
+extension ManualComponent {
+
+    func renderCurrentManualFragment(app: Application, state componentState: ComponentState) async -> RenderResult {
+        guard ComponentStateBody.self != LeafRenderPath.self else { return await renderCurrent(app: app) }
+
+        let current = await state.current
+        let content = body(state: current, componentState: componentState)
+
+        guard let html = content as? any HTML else {
+            return await render(with: current, on: app)
+        }
+
+        return .rendered(html.render())
+    }
+
+}
+
 /// Derives an Elementary-backed template from `body(context:)` for polling components.
 public extension PollingComponent where Body: HTML {
 
     var template: any Template {
         ElementaryTemplate<FragmentContext, Body> { [self] context in body(context: context) }
+    }
+
+    func renderCurrent(app: Application, state componentState: ComponentState) async -> RenderResult {
+        guard let context = await poll(on: app.db) else { return .absent }
+        return .rendered(body(context: context, componentState: componentState).render())
     }
 
 }
@@ -158,4 +185,3 @@ public extension QueryComponent where Body: HTML {
     }
 
 }
-

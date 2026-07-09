@@ -19,9 +19,9 @@ enum Message: Codable {
     case updateQueryComponent(component: String, html: String)
     case deleteQueryComponent(component: String)
 
-    case replaceStream(component: String, modelID: UUID, stream: String, text: String)
-    case appendStream(component: String, modelID: UUID, stream: String, text: String)
-    case closeStream(component: String, modelID: UUID, stream: String)
+    case replaceStream(component: String, modelID: UUID?, stream: String, text: String)
+    case appendStream(component: String, modelID: UUID?, stream: String, text: String)
+    case closeStream(component: String, modelID: UUID?, stream: String)
 
 }
 
@@ -96,19 +96,19 @@ extension Message {
 
     struct StreamReplace: BroadcastableMessage, SendableMessage {
         let component: String
-        let modelID: UUID
+        let modelID: UUID?
         let stream: String
         let text: String
         var wireFormat: Message { .replaceStream(component: component, modelID: modelID, stream: stream, text: text) }
     }
 
     struct StreamAppend: BroadcastableMessage, SendableMessage {
-        let component: String, modelID: UUID, stream: String, text: String
+        let component: String, modelID: UUID?, stream: String, text: String
         var wireFormat: Message { .appendStream(component: component, modelID: modelID, stream: stream, text: text) }
     }
 
     struct StreamClose: BroadcastableMessage, SendableMessage {
-        let component: String, modelID: UUID, stream: String
+        let component: String, modelID: UUID?, stream: String
         var wireFormat: Message { .closeStream(component: component, modelID: modelID, stream: stream) }
     }
 

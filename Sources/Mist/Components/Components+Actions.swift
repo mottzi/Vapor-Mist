@@ -43,12 +43,20 @@ extension Components {
         await app.mist.clients.setStateIfUnchanged(state, ifCurrentlyMatches: snapshot, for: clientID, componentID: componentKey, default: componentInstance.defaultState)
 
         if case .success = result {
-            await app.mist.delivery.sendInstanceUpdateAfterAction(
-                of: componentInstance,
-                modelID: targetID,
-                state: state,
-                to: clientID
-            )
+            if targetID == nil {
+                await app.mist.delivery.sendFragmentUpdateAfterAction(
+                    of: componentInstance,
+                    state: state,
+                    to: clientID
+                )
+            } else {
+                await app.mist.delivery.sendInstanceUpdateAfterAction(
+                    of: componentInstance,
+                    modelID: targetID,
+                    state: state,
+                    to: clientID
+                )
+            }
         }
         
         return result

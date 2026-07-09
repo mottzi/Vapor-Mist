@@ -21,6 +21,9 @@ public protocol LiveComponent: FragmentComponent {
     /// Returns the component's HTML body from current state. Implement for Elementary-backed rendering.
     func body(state: FragmentState) -> Body
 
+    /// Returns the component's HTML body from current state and per-client component state.
+    func body(state: FragmentState, componentState: ComponentState) -> Body
+
 }
 
 public extension LiveComponent {
@@ -30,6 +33,11 @@ public extension LiveComponent {
 
     /// Default: actions suppress automatic refresh while they run.
     var pausesDuringAction: Bool { true }
+
+    /// Default: live fragments ignore per-client component state.
+    func body(state: FragmentState, componentState: ComponentState) -> Body {
+        body(state: state)
+    }
 
 }
 

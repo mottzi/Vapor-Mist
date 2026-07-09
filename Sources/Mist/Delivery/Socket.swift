@@ -30,7 +30,15 @@ extension Socket.Connection {
         }
         
         socket.onClose.whenComplete { _ in
-            Task { await app.mist.clients.removeClient(clientID: clientID) }
+            Task {
+                let changedComponents = await app.mist.clients.removeClient(clientID: clientID)
+                for change in changedComponents {
+                    await app.mist.streams.updateSubscriberCount(
+                        for: change.component,
+                        to: change.subscriberCount
+                    )
+                }
+            }
         }
     }
     
@@ -69,6 +77,9 @@ extension Socket.Connection {
         let success = await app.mist.clients.addSubscription(component, to: clientID)
         guard success else { return }
 
+        let subscriberCount = await app.mist.clients.subscriberCount(of: component)
+        await app.mist.streams.updateSubscriberCount(for: component, to: subscriberCount)
+
         // let response = success
             // ? "Client (\(clientID.short)) subscribed to component '\(component)'."
             // : "Client (\(clientID.short)) didn't subscribe to component '\(component)'."
@@ -90,6 +101,9 @@ extension Socket.Connection {
 
         let success = await app.mist.clients.addSubscription(component, to: clientID)
         guard success else { return }
+
+        let subscriberCount = await app.mist.clients.subscriberCount(of: component)
+        await app.mist.streams.updateSubscriberCount(for: component, to: subscriberCount)
 
         await app.mist.components.rehydrateSubscriptionState(
             for: component,

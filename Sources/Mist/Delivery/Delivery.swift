@@ -23,6 +23,17 @@ struct Delivery {
         await sendFragmentResult(result, for: component.name, to: clientID)
     }
 
+    /// Refreshes one rendered fragment after an action successfully mutates per-client state.
+    func sendFragmentUpdateAfterAction(
+        of component: any Component,
+        state: ComponentState,
+        to clientID: UUID
+    ) async {
+        guard let component = component as? any FragmentComponent else { return }
+        let result = await app.mist.renderer.renderCurrentFragment(component, state: state)
+        await sendFragmentResult(result, for: component.name, to: clientID)
+    }
+
     /// Broadcasts the current fragment state to subscribers.
     func broadcastCurrentFragment(_ component: any FragmentComponent) async {
         let result = await app.mist.renderer.renderCurrentFragment(component)
