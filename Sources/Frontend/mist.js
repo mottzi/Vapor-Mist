@@ -326,14 +326,20 @@ class MistSocket {
         return true;
     }
 
+    normalizeStreamModelID(modelID) {
+        return modelID ?? null;
+    }
+
     streamKey(component, modelID, stream) {
-        return `${component}\u0000${modelID}\u0000${stream}`;
+        const normalizedModelID = this.normalizeStreamModelID(modelID);
+        return `${component}\u0000${normalizedModelID}\u0000${stream}`;
     }
 
     rememberStream(component, modelID, stream, text) {
-        const key = this.streamKey(component, modelID, stream);
-        const limitedText = this.limitStreamText(component, modelID, stream, text);
-        this.streamBuffers.set(key, { component, modelID, stream, text: limitedText });
+        const normalizedModelID = this.normalizeStreamModelID(modelID);
+        const key = this.streamKey(component, normalizedModelID, stream);
+        const limitedText = this.limitStreamText(component, normalizedModelID, stream, text);
+        this.streamBuffers.set(key, { component, modelID: normalizedModelID, stream, text: limitedText });
         return key;
     }
 
@@ -347,12 +353,13 @@ class MistSocket {
         
         if (!text) return;
 
-        const key = this.streamKey(component, modelID, stream);
+        const normalizedModelID = this.normalizeStreamModelID(modelID);
+        const key = this.streamKey(component, normalizedModelID, stream);
         const existing = this.streamBuffers.get(key);
-        const nextText = this.limitStreamText(component, modelID, stream, (existing?.text || '') + text);
-        this.streamBuffers.set(key, { component, modelID, stream, text: nextText });
+        const nextText = this.limitStreamText(component, normalizedModelID, stream, (existing?.text || '') + text);
+        this.streamBuffers.set(key, { component, modelID: normalizedModelID, stream, text: nextText });
 
-        this.findStreamTargets(component, modelID, stream).forEach(target => {
+        this.findStreamTargets(component, normalizedModelID, stream).forEach(target => {
             const shouldScroll = this.shouldAutoScrollStreamTarget(target);
             target.appendChild(document.createTextNode(text));
             this.pruneStreamTarget(target);
@@ -439,7 +446,7 @@ class MistSocket {
         if (!componentElement) return;
 
         const component = componentElement.getAttribute('mist-component');
-        const modelID = componentElement.getAttribute('mist-id');
+        const modelID = this.normalizeStreamModelID(componentElement.getAttribute('mist-id'));
         if (!component) return;
 
         this.streamBuffers.set(this.streamKey(component, modelID, stream), {
