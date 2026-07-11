@@ -41,7 +41,16 @@ targets: [
 ]
 ```
 
-Copy `mist.js` and `morphdom.js` from the package into your `/Public` directory.
+Mist compiles `mist.js` and `morphdom.js` into the library. Publish them through routes owned by your application using the typed asset catalog:
+
+```swift
+for asset in MistAsset.allCases {
+    let metadata = MistAssets.metadata(for: asset)
+    // Serve metadata.bytes at metadata.filename using metadata.mediaType and metadata.etag.
+}
+```
+
+Do not copy the files into your application's source tree. Updating Mist and rebuilding the application automatically couples the browser runtime to the selected Mist revision.
 
 ## Example
 

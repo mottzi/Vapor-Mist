@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 
-const source = readFileSync(new URL('../../Sources/Frontend/mist.js', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../../Sources/Mist/Resources/Frontend/mist.js', import.meta.url), 'utf8');
 
 function makeSocket() {
     class ElementMock {

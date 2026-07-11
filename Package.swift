@@ -15,7 +15,8 @@ let package = Package(
         .package(url: "https://github.com/vapor/leaf.git", from: "4.4.0"),
         .package(url: "https://github.com/vapor/fluent-sqlite-driver.git", from: "4.8.0"),
         .package(url: "https://github.com/elementary-swift/elementary.git", from: "0.6.0"),
-        .package(url: "https://github.com/vapor-community/vapor-elementary.git", from: "0.1.0")
+        .package(url: "https://github.com/vapor-community/vapor-elementary.git", from: "0.1.0"),
+        .package(url: "https://github.com/apple/swift-crypto.git", from: "4.3.0")
     ],
     targets: [
         .target(
@@ -25,8 +26,13 @@ let package = Package(
                 .product(name: "Fluent", package: "fluent"),
                 .product(name: "Leaf", package: "leaf"),
                 .product(name: "Elementary", package: "elementary"),
-                .product(name: "VaporElementary", package: "vapor-elementary")
+                .product(name: "VaporElementary", package: "vapor-elementary"),
+                .product(name: "Crypto", package: "swift-crypto")
             ],
+            resources: [
+                .embedInCode("Resources/Frontend/mist.js"),
+                .embedInCode("Resources/Frontend/morphdom.js")
+            ]
         ),
         .testTarget(
             name: "MistTests",
@@ -35,6 +41,7 @@ let package = Package(
                 .product(name: "Elementary", package: "elementary"),
                 .product(name: "XCTVapor", package: "vapor"),
                 .product(name: "FluentSQLiteDriver", package: "fluent-sqlite-driver"),
+                .product(name: "Crypto", package: "swift-crypto"),
             ]
         )
     ],
