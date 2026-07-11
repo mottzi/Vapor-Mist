@@ -41,13 +41,19 @@ targets: [
 ]
 ```
 
-Mist compiles `mist.js` and `morphdom.js` into the library. Publish them through routes owned by your application using the typed asset catalog:
+Mist compiles `mist.js` and `morphdom.js` into the library. For standard Vapor routing, register Mist's convenience routes:
 
 ```swift
-for asset in MistAsset.allCases {
-    let metadata = MistAssets.metadata(for: asset)
-    // Serve metadata.bytes at metadata.filename using metadata.mediaType and metadata.etag.
-}
+MistAssetRoutes.register(on: app)
+```
+
+The routes serve both assets with JavaScript media types, SHA-256 ETags, `If-None-Match` handling, and `Cache-Control: no-cache`. Route prefixes and middleware remain controlled by the router passed to `register(on:)`.
+
+For custom routing or response policies, use the asset values directly:
+
+```swift
+let asset = MistAsset.mist
+// Serve asset.bytes at asset.filename using asset.mediaType and asset.etag.
 ```
 
 Do not copy the files into your application's source tree. Updating Mist and rebuilding the application automatically couples the browser runtime to the selected Mist revision.

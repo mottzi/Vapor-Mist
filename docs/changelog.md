@@ -5,7 +5,8 @@
 **Frontend runtimes are embedded SwiftPM resources**
 
 - Move `mist.js` and `morphdom.js` into the Mist target and declare them with SwiftPM `.embedInCode`, making Mist the only source-controlled authority for both browser runtimes.
-- Add the public, typed `MistAsset`, `MistAssetMetadata`, and `MistAssets` API. Consumers receive immutable bytes, filenames, JavaScript media types, and strong SHA-256 ETags without depending on `Bundle.module`, generated bundle names, or filesystem placement.
+- Replace the registry and metadata types with the exhaustive `MistAsset` API. Each asset exposes its filename, JavaScript media type, embedded bytes, and strong SHA-256 ETag directly.
+- Add the opt-in `MistAssetRoutes` Vapor convenience API for standard GET/HEAD routing, `If-None-Match` handling, ETags, and `Cache-Control: no-cache`, while retaining direct asset access for consumers with custom response policies.
 - Couple the frontend resources to the selected Mist revision and the consuming executable. Consumers no longer copy JavaScript into their own repositories, and statically linked Linux deployments require no companion Mist resource bundle.
 - Add resource-contract coverage for both assets and update the existing frontend behavioral test to read the resource from its target-owned location.
 

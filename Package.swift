@@ -30,8 +30,8 @@ let package = Package(
                 .product(name: "Crypto", package: "swift-crypto")
             ],
             resources: [
-                .embedInCode("Resources/Frontend/mist.js"),
-                .embedInCode("Resources/Frontend/morphdom.js")
+                .embedInCode("Resources/mist.js"),
+                .embedInCode("Resources/morphdom.js")
             ]
         ),
         .testTarget(
