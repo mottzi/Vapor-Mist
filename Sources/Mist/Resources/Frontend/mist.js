@@ -768,6 +768,7 @@ class MistSocket {
 
         this.socket.onopen = () => {
             this.clearReconnectTimer();
+            console.log('[Client] Welcome! Connected to server.');
             this.startHeartbeat();
             this.subscribeToPageComponents();
             this.bootBehaviors();
